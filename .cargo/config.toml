@@ -1,2 +1,2 @@
 [build]
-rustflags = [ "-C", "embed-bitcode=yes", "-Zdylib-lto" ]
+rustflags = [ "-C", "target-cpu=native", "-C", "embed-bitcode=yes", "-Zdylib-lto" ]
