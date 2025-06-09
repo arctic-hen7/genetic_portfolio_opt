@@ -13,7 +13,7 @@ use portfolio::Portfolio;
 const NUM_TRADING_DAYS: usize = 252;
 const RISK_FREE_RATE_PA: f64 = 0.051;
 const WINDOW_LENGTH: usize = NUM_TRADING_DAYS * 5;
-const TEST_WINDOW_LENGTH: usize = WINDOW_LENGTH / 3;
+const TEST_WINDOW_LENGTH: usize = NUM_TRADING_DAYS;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compute the daily risk-free rate and report
