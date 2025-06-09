@@ -1,7 +1,9 @@
 use crate::{data::DataHandle, generator::generate_portfolio, params::Parameters};
+use core::f64;
 use genetic::{Individual, NullTracker};
 use ordered_float::NotNan;
 use rand::Rng;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::hash::Hash;
 
 pub(crate) static ZERO: NotNan<f64> = unsafe { NotNan::new_unchecked(0.0) };
@@ -14,7 +16,8 @@ pub(crate) static ONE: NotNan<f64> = unsafe { NotNan::new_unchecked(1.0) };
 /// is considered as a candidate solution.
 #[derive(Debug)]
 pub struct Portfolio<'p, 'd> {
-    // NOTE: Guaranteed by `PortfolioGenerator` to have the same length as the number of assets
+    // NOTE: Guaranteed by `PortfolioGenerator` to have the same length as the number of assets.
+    // Needs to be `NotNan<f64>` so we can hash.
     weights: Vec<NotNan<f64>>,
     params: &'p Parameters,
     data: DataHandle<'d>,
@@ -72,18 +75,17 @@ impl<'p, 'd> Portfolio<'p, 'd> {
     ///
     /// Note: the returned `f64` is guaranteed not to be NaN.
     pub fn cumulative_return(&self) -> f64 {
-        *self
-            .data
+        self.data
             .data()
             // Turn each row into the portfolio's performance at that point
             .map(|row| {
-                row.iter()
-                    .zip(self.weights.iter())
-                    .map(|(r, weight)| r * weight)
-                    .sum::<NotNan<f64>>()
-                    + ONE
+                row.par_iter()
+                    .zip(self.weights.par_iter())
+                    .map(|(r, weight)| r * **weight)
+                    .sum::<f64>()
+                    + 1.0
             })
-            .product::<NotNan<f64>>()
+            .product::<f64>()
     }
 }
 // Manual implementations of `PartialEq`, `Eq`, and `Hash` that ignore the `handle`
@@ -120,39 +122,48 @@ impl<'p, 'd> Individual for Portfolio<'p, 'd> {
             // Now multiply each element of the row by the appropriate weight and sum them all
             // together. This leaves us with an iterator of combined returns
             .map(|row| {
-                row.iter()
-                    .zip(self.weights.iter())
-                    .map(|(weight, r)| weight * r)
-                    .sum::<NotNan<f64>>()
+                row.par_iter()
+                    .zip(self.weights.par_iter())
+                    .map(|(r, weight)| r * **weight)
+                    .sum::<f64>()
             })
             // Now compute the numerator and denominator of the Omega ratio.
             //   - Numerator = sum_t(max(0, weighted_r - theta))
             //   - Denominator = sum_t(max(0, theta - weighted_r))
-            .fold((ZERO, ZERO), |(numerator, denominator), weighted_r| {
-                let gain = weighted_r - self.params.risk_free_rate();
-                let loss = self.params.risk_free_rate() - weighted_r;
+            .fold(
+                || (0.0, 0.0),
+                |(numerator, denominator), weighted_r| {
+                    let gain = weighted_r - *self.params.risk_free_rate();
+                    let loss = *self.params.risk_free_rate() - weighted_r;
 
-                (numerator + gain.max(ZERO), denominator + loss.max(ZERO))
-            });
+                    (numerator + gain.max(0.0), denominator + loss.max(0.0))
+                },
+            )
+            .reduce(
+                || (0.0, 0.0),
+                |(num1, den1), (num2, den2)| (num1 + num2, den1 + den2),
+            );
 
         // Handle edge cases
-        let omega = if *numerator == 0.0 && *denominator == 0.0 {
+        let omega = if numerator == 0.0 && denominator == 0.0 {
             panic!("assets have zero variation in returns");
-        } else if *denominator == 0.0 {
-            unsafe { NotNan::new_unchecked(f64::INFINITY) }
+        } else if denominator == 0.0 {
+            f64::INFINITY
         } else {
             numerator / denominator
         };
 
-        omega
+        // This could well fail (more performant to fail than to check everywhere though)
+        NotNan::new(omega).expect("NaN")
     }
 
     // Cross with a convex combination (avoids a separate normalisation step)
     fn cross(&self, other: &Self, _tracker: &Self::Tracker, rng: &mut impl Rng) -> Self {
-        let alpha = NotNan::new(rng.random_range(0.0..=1.0)).unwrap();
+        // SAFETY: A randomly generated number cannot be NaN
+        let alpha = unsafe { NotNan::new_unchecked(rng.random_range(0.0..=1.0)) };
         let mut child = Vec::with_capacity(self.weights.len());
         for (a, b) in self.weights.iter().zip(other.weights.iter()) {
-            let weight = a * alpha + b * (NotNan::new(1.0).unwrap() - alpha);
+            let weight = a * alpha + b * (ONE - alpha);
             debug_assert!(*weight >= 0.0);
             child.push(weight);
         }

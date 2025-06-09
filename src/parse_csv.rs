@@ -24,7 +24,7 @@ pub enum CsvParseError {
 /// For further details, see [`AlgorithmHandle::new`].
 pub fn parse_csv(
     mut assets_csv: impl BufRead,
-) -> Result<(Vec<String>, Vec<String>, Vec<Vec<NotNan<f64>>>), CsvParseError> {
+) -> Result<(Vec<String>, Vec<String>, Vec<Vec<f64>>), CsvParseError> {
     // Read the header line to get the asset names, skipping the first one (should be the date
     // column)
     let mut header_line = String::new();
@@ -37,8 +37,8 @@ pub fn parse_csv(
 
     // Stores whether or not we've seen the start of each asset (i.e. the first non-0.0 value)
     let mut seen_start: Vec<bool> = vec![false; asset_names.len()];
-    // Stores the raw asset data, parsed as non-NaN `f64`s
-    let mut asset_rows: Vec<Vec<NotNan<f64>>> = Vec::new();
+    // Stores the raw asset data, parsed as `f64`s
+    let mut asset_rows: Vec<Vec<f64>> = Vec::new();
     // Stores the dates for which we have asset data
     let mut dates = Vec::new();
 
@@ -50,7 +50,7 @@ pub fn parse_csv(
         // Read the date (don't add it yet though, just in case we're in a dropping phase)
         let date = parts.next().unwrap().to_string();
 
-        let mut row: Vec<NotNan<f64>> = Vec::new();
+        let mut row: Vec<f64> = Vec::new();
         let mut should_drop = true; // Starts true, false once we see non-zero
         for (col_idx, value_str) in parts.enumerate() {
             // Parse the value as an f64
@@ -67,7 +67,7 @@ pub fn parse_csv(
                 row: row_idx,
                 col: col_idx,
             })?;
-            row.push(value);
+            row.push(*value);
 
             // If we've found a 0.0 and we still haven't seen the start of non-zero values, drop
             // this row. If the value is non-zero, we shouldn't drop this row on account of this

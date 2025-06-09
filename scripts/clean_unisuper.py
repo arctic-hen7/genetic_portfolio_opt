@@ -28,7 +28,7 @@ def clean_data(filename, drop_cols):
 
     # 3) cumulative % → multiplier → daily %
     mult = df.div(100.0).add(1.0)       # (cum% / 100 + 1)
-    daily = mult.div(mult.shift(1)).sub(1.0).mul(100.0)
+    daily = mult.div(mult.shift(1)).sub(1.0)
 
     # 4a) lose that first NaN row
     daily = daily.iloc[1:].reset_index(drop=True)

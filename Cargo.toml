@@ -15,4 +15,4 @@ thiserror = "2.0.12"
 opt-level = 3
 codegen-units = 1
 lto = "fat"
-embed-bitcode = true
+debug = true

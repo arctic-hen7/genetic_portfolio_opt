@@ -38,6 +38,8 @@ impl<'p, 'd> Generator<Portfolio<'p, 'd>> for PortfolioGenerator<'p, 'd> {
 }
 
 /// Generates a single portfolio with the given number of assets.
+// PERF: This uses `NotNan` sums internally, but because it onyl runs at startup, it's efficient
+// enough.
 pub(crate) fn generate_portfolio(n_assets: usize, rng: &mut impl Rng) -> Vec<NotNan<f64>> {
     let mut portfolio = Vec::with_capacity(n_assets);
     for _ in 0..n_assets {

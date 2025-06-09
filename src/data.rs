@@ -1,10 +1,10 @@
 use crate::{
     params::Parameters,
     parse_csv::{parse_csv, CsvParseError},
-    portfolio::Portfolio,
+    portfolio::{Portfolio, ONE, ZERO},
 };
 use genetic::Individual;
-use ordered_float::NotNan;
+use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{io::BufRead, ops::Range, path::Path};
 
 /// Historical data for the assets being optimised. This is likely to be very large in memory.
@@ -17,7 +17,7 @@ pub struct Data {
     /// is the number of assets, while that of the outer vector is the number of returns. This
     /// allows more efficient iterator zipping for combining returns into weighted portfolios for
     /// fitness computation. It's also easier to read directly from a CSV file.
-    assets: Vec<Vec<NotNan<f64>>>,
+    assets: Vec<Vec<f64>>,
     /// The names of each asset.
     asset_names: Vec<String>,
     /// The dates for which we have recorded asset data. These are likely to not be continuous, as
@@ -141,9 +141,9 @@ impl<'d> DataHandle<'d> {
 
     /// Returns an iterator over the rows of data we have (i.e. each element is a vector of the
     /// returns for each asset at that point).
-    pub fn data(&self) -> impl Iterator<Item = &Vec<NotNan<f64>>> {
+    pub fn data(&self) -> impl ParallelIterator<Item = &Vec<f64>> {
         // Return only the rows in the range
-        self.data.assets[self.start_idx..self.end_idx].iter()
+        self.data.assets[self.start_idx..self.end_idx].par_iter()
     }
 
     /// Returns the fitness of a portfolio using *only* each asset. This returns an iterator, where
@@ -161,13 +161,7 @@ impl<'d> DataHandle<'d> {
                 // For each asset, construct a portfolio weighting using only that asset
                 let portfolio = Portfolio::new(
                     (0..self.n_assets())
-                        .map(|idx| {
-                            if idx == asset_idx {
-                                NotNan::new(1.0).unwrap()
-                            } else {
-                                NotNan::new(0.0).unwrap()
-                            }
-                        })
+                        .map(|idx| if idx == asset_idx { ONE } else { ZERO })
                         .collect(),
                     params,
                     *self,
