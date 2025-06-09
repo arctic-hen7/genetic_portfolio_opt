@@ -1,6 +1,5 @@
 use crate::{data::DataHandle, params::Parameters, portfolio::Portfolio};
 use genetic::{DefaultRng, Generator};
-use ordered_float::NotNan;
 use rand::{Rng, SeedableRng};
 use rand_distr::Uniform;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -38,9 +37,7 @@ impl<'p, 'd> Generator<Portfolio<'p, 'd>> for PortfolioGenerator<'p, 'd> {
 }
 
 /// Generates a single portfolio with the given number of assets.
-// PERF: This uses `NotNan` sums internally, but because it onyl runs at startup, it's efficient
-// enough.
-pub(crate) fn generate_portfolio(n_assets: usize, rng: &mut impl Rng) -> Vec<NotNan<f64>> {
+pub(crate) fn generate_portfolio(n_assets: usize, rng: &mut impl Rng) -> Vec<f64> {
     let mut portfolio = Vec::with_capacity(n_assets);
     for _ in 0..n_assets {
         // Get a uniformly distributed value that's guaranteed not to be zero (so
@@ -56,9 +53,9 @@ pub(crate) fn generate_portfolio(n_assets: usize, rng: &mut impl Rng) -> Vec<Not
         };
         // Now this will never fail (`uniform > 0.0` guaranteed)
         debug_assert!(uniform > 0.0, "uniform sample was zero");
-        portfolio.push(unsafe { NotNan::new_unchecked(-uniform.ln()) });
+        portfolio.push(-uniform.ln());
     }
-    let sum: NotNan<f64> = portfolio.iter().sum();
+    let sum: f64 = portfolio.iter().sum();
     portfolio.iter_mut().for_each(|x| *x /= sum);
 
     portfolio

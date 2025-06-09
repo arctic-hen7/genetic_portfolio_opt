@@ -16,7 +16,7 @@ use portfolio::Portfolio;
 
 const NUM_TRADING_DAYS: usize = 252;
 const RISK_FREE_RATE_PA: f64 = 0.051;
-const WINDOW_LENGTH: usize = NUM_TRADING_DAYS * 5;
+const WINDOW_LENGTH: usize = NUM_TRADING_DAYS * 3;
 const TEST_WINDOW_LENGTH: usize = NUM_TRADING_DAYS;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -29,7 +29,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Prepare the algorithm (parsing the data)
     let params = Parameters::new(daily_risk_free_rate, 0.25);
-    let data = Data::from_file("asset_data/daily_returns.csv")?;
+    // let data = Data::from_file("asset_data/daily_returns.csv")?;
+    let data = Data::from_file("data/unisuper_clean.new.csv")?;
     println!("Parsed {} observations.", data.all().n_obs());
 
     println!();
@@ -41,7 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut num_tests = 0;
     let mut training_range = 0..WINDOW_LENGTH;
     loop {
-        // Advance the training range by the length of the testing window
+        // Advance the training range by the length of the testing window (rolling forward is best,
+        // learning old regimes is a problem)
         training_range =
             (training_range.start + TEST_WINDOW_LENGTH)..(training_range.end + TEST_WINDOW_LENGTH);
         // The testing range will then be the *next* testing window after that
@@ -73,7 +75,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Train for the best portfolio in the training data
         let solutions = SimulationBuilder::<Portfolio>::new()
-            .with_selector(TournamentSelector::new(50))
+            .with_selector(TournamentSelector::new(150))
             .with_updater(StaticElitistUpdater::new_worst(5))
             .with_generator(PortfolioGenerator::new(&params, training_data))
             .with_stop_criterion(FitnessPlateauStopCriterion::new(
@@ -82,7 +84,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 10,                           // No. of generations below slope threshold
             ))
             .or_max_generations(200)
-            .with_initial_population_size(50_000)
+            .with_initial_population_size(100_000)
             .with_seed(seed)
             .run()?;
         let best_portfolio = solutions.best().unwrap().with_data(testing_data);

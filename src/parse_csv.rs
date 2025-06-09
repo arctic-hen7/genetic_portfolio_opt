@@ -1,4 +1,3 @@
-use ordered_float::NotNan;
 use std::{io::BufRead, num::ParseFloatError};
 use thiserror::Error;
 
@@ -63,11 +62,13 @@ pub fn parse_csv(
                         col: col_idx,
                         source,
                     })?;
-            let value = NotNan::new(value).map_err(|_| CsvParseError::NaN {
-                row: row_idx,
-                col: col_idx,
-            })?;
-            row.push(*value);
+            if value.is_nan() {
+                return Err(CsvParseError::NaN {
+                    row: row_idx,
+                    col: col_idx,
+                });
+            }
+            row.push(value);
 
             // If we've found a 0.0 and we still haven't seen the start of non-zero values, drop
             // this row. If the value is non-zero, we shouldn't drop this row on account of this

@@ -6,9 +6,6 @@ use rand::Rng;
 use rayon::iter::ParallelIterator;
 use std::hash::Hash;
 
-pub(crate) static ZERO: NotNan<f64> = unsafe { NotNan::new_unchecked(0.0) };
-pub(crate) static ONE: NotNan<f64> = unsafe { NotNan::new_unchecked(1.0) };
-
 /// A single candidate portfolio. This is a vector of weights that defines an investment strategy
 /// over the assets under consideration, where all weights are non-negative and sum to 1.0.
 ///
@@ -17,8 +14,7 @@ pub(crate) static ONE: NotNan<f64> = unsafe { NotNan::new_unchecked(1.0) };
 #[derive(Debug)]
 pub struct Portfolio<'p, 'd> {
     // NOTE: Guaranteed by `PortfolioGenerator` to have the same length as the number of assets.
-    // Needs to be `NotNan<f64>` so we can hash.
-    weights: Vec<NotNan<f64>>,
+    weights: Vec<f64>,
     params: &'p Parameters,
     data: DataHandle<'d>,
 }
@@ -33,11 +29,7 @@ impl Clone for Portfolio<'_, '_> {
 }
 impl<'p, 'd> Portfolio<'p, 'd> {
     /// Creates a new [`Portfolio`] from the given weights, data, and parameters
-    pub(crate) fn new(
-        weights: Vec<NotNan<f64>>,
-        params: &'p Parameters,
-        data: DataHandle<'d>,
-    ) -> Self {
+    pub(crate) fn new(weights: Vec<f64>, params: &'p Parameters, data: DataHandle<'d>) -> Self {
         Self {
             weights,
             params,
@@ -51,7 +43,7 @@ impl<'p, 'd> Portfolio<'p, 'd> {
         self.data
             .asset_names()
             .zip(self.weights.iter())
-            .map(move |(name, weight)| (name, **weight))
+            .map(move |(name, weight)| (name, *weight))
     }
 
     /// Returns a new portfolio with the same weights as this one, over the given data period. This
@@ -81,7 +73,7 @@ impl<'p, 'd> Portfolio<'p, 'd> {
             .map(|row| {
                 row.iter()
                     .zip(self.weights.iter())
-                    .map(|(r, weight)| r * **weight)
+                    .map(|(r, weight)| r * weight)
                     .sum::<f64>()
                     + 1.0
             })
@@ -97,7 +89,25 @@ impl PartialEq for Portfolio<'_, '_> {
 impl Eq for Portfolio<'_, '_> {}
 impl Hash for Portfolio<'_, '_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.weights.hash(state);
+        // We need a custom hash implementation because we're working with floats, which don't hash
+        // (no total order). However, we can reinterpret the floats as integers and hash those
+        // happily. This is generic over whatever kind of float we use (`f32` or `f64`).
+
+        // SAFETY: f64 is exactly 8 bytes and has the same alignment
+        // requirements as u64, so we can re‐interpret the memory
+        // as a u8‐byte slice of length len*8.
+        //
+        // SAFETY: `self.weights` a vector of floats, and each one can be reinterpreted as the
+        // same-sized unsigned integer type (same size and alignment requirements).
+        let ptr = self.weights.as_ptr() as *const u8;
+        // In our array, we're splitting every float into 4/8 bytes, so this is the correct
+        // calculation!
+        let num_elems = self.weights.len() * std::mem::size_of::<f64>();
+        let bytes: &[u8] = unsafe { std::slice::from_raw_parts(ptr, num_elems) };
+        state.write(bytes);
+        // NOTE: We don't write the number of elements because in a given simulation, every
+        // portfolio will have the same length. If this ever proves a problem, we can add one more
+        // write.
     }
 }
 
@@ -124,7 +134,7 @@ impl<'p, 'd> Individual for Portfolio<'p, 'd> {
             .map(|row| {
                 row.iter()
                     .zip(self.weights.iter())
-                    .map(|(r, weight)| r * **weight)
+                    .map(|(r, weight)| r * weight)
                     .sum::<f64>()
             })
             // Now compute the numerator and denominator of the Omega ratio.
@@ -133,8 +143,8 @@ impl<'p, 'd> Individual for Portfolio<'p, 'd> {
             .fold(
                 || (0.0, 0.0),
                 |(numerator, denominator), weighted_r| {
-                    let gain = weighted_r - *self.params.risk_free_rate();
-                    let loss = *self.params.risk_free_rate() - weighted_r;
+                    let gain = weighted_r - self.params.risk_free_rate();
+                    let loss = self.params.risk_free_rate() - weighted_r;
 
                     (numerator + gain.max(0.0), denominator + loss.max(0.0))
                 },
@@ -153,18 +163,21 @@ impl<'p, 'd> Individual for Portfolio<'p, 'd> {
             numerator / denominator
         };
 
-        // This could well fail (more performant to fail than to check everywhere though)
+        // PERF: This could absolutely fail, and we wouldn't know how it had or where it had.
+        // However, this is *significantly* more performant than using `NotNan` everywhere, those
+        // checks show up as real time spent on a flamegraph. So, we just panic if we see a NaN,
+        // and you would haev to debu instrument your way out of it, which isn't reproducible at
+        // all, but it hasn't happened yet!
         NotNan::new(omega).expect("NaN")
     }
 
     // Cross with a convex combination (avoids a separate normalisation step)
     fn cross(&self, other: &Self, _tracker: &Self::Tracker, rng: &mut impl Rng) -> Self {
-        // SAFETY: A randomly generated number cannot be NaN
-        let alpha = unsafe { NotNan::new_unchecked(rng.random_range(0.0..=1.0)) };
+        let alpha = rng.random_range(0.0..=1.0);
         let mut child = Vec::with_capacity(self.weights.len());
         for (a, b) in self.weights.iter().zip(other.weights.iter()) {
-            let weight = a * alpha + b * (ONE - alpha);
-            debug_assert!(*weight >= 0.0);
+            let weight = a * alpha + b * (1.0 - alpha);
+            debug_assert!(weight >= 0.0);
             child.push(weight);
         }
 
@@ -180,16 +193,14 @@ impl<'p, 'd> Individual for Portfolio<'p, 'd> {
         let noise = generate_portfolio(self.weights.len(), rng);
         // SAFETY: We'll never produce a random NaN (`mutation_max_jitter` also guaranteed to be
         // not NaN)
-        let epsilon = unsafe {
-            NotNan::new_unchecked(rng.random_range(0.0..=*self.params.mutation_max_jitter()))
-        };
+        let epsilon = rng.random_range(0.0..=self.params.mutation_max_jitter());
 
         self.weights
             .iter_mut()
             .enumerate()
             .for_each(|(idx, weight)| {
-                let new_weight = epsilon * noise[idx] + (ONE - epsilon) * *weight;
-                debug_assert!(*new_weight >= 0.0);
+                let new_weight = epsilon * noise[idx] + (1.0 - epsilon) * *weight;
+                debug_assert!(new_weight >= 0.0);
                 *weight = new_weight;
             })
     }

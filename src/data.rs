@@ -1,7 +1,7 @@
 use crate::{
     params::Parameters,
     parse_csv::{parse_csv, CsvParseError},
-    portfolio::{Portfolio, ONE, ZERO},
+    portfolio::Portfolio,
 };
 use genetic::Individual;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
@@ -161,7 +161,7 @@ impl<'d> DataHandle<'d> {
                 // For each asset, construct a portfolio weighting using only that asset
                 let portfolio = Portfolio::new(
                     (0..self.n_assets())
-                        .map(|idx| if idx == asset_idx { ONE } else { ZERO })
+                        .map(|idx| if idx == asset_idx { 1.0 } else { 0.0 })
                         .collect(),
                     params,
                     *self,
