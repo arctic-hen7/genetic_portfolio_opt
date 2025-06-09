@@ -6,7 +6,11 @@ mod portfolio;
 
 use data::Data;
 use generator::PortfolioGenerator;
-use genetic::{selectors::TournamentSelector, Individual, SimulationBuilder, StaticElitistUpdater};
+use genetic::{
+    selectors::TournamentSelector, FitnessPlateauStopCriterion, Individual, SimulationBuilder,
+    StaticElitistUpdater,
+};
+use ordered_float::NotNan;
 use params::Parameters;
 use portfolio::Portfolio;
 
@@ -33,6 +37,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Generate a random seed to use for every optimisation
     let seed = rand::random::<u64>();
 
+    let mut cumulative_return = 1.0;
+    let mut num_tests = 0;
     let mut training_range = 0..WINDOW_LENGTH;
     loop {
         // Advance the training range by the length of the testing window
@@ -67,11 +73,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Train for the best portfolio in the training data
         let solutions = SimulationBuilder::<Portfolio>::new()
-            .with_selector(TournamentSelector::new(250))
-            .with_updater(StaticElitistUpdater::new_worst(10))
+            .with_selector(TournamentSelector::new(50))
+            .with_updater(StaticElitistUpdater::new_worst(5))
             .with_generator(PortfolioGenerator::new(&params, training_data))
-            .with_initial_population_size(100_000)
-            .max_generations(250)
+            .with_stop_criterion(FitnessPlateauStopCriterion::new(
+                10,                           // Window
+                NotNan::new(0.0001).unwrap(), // Slope threshold
+                10,                           // No. of generations below slope threshold
+            ))
+            .or_max_generations(200)
+            .with_initial_population_size(50_000)
             .with_seed(seed)
             .run()?;
         let best_portfolio = solutions.best().unwrap().with_data(testing_data);
@@ -112,9 +123,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("Return rate: {best_annual_return_pct:.3}% (cum: {best_cumul_return_pct:.3}%)");
         println!();
         println!("{outperformers_report}");
+
+        cumulative_return *= best_cumul_return;
+        num_tests += 1;
     }
     // Report the seed for reproducibility
     println!("Seed: {}", seed);
+
+    // And report the final cumulative return (windows don't overlap)
+    let final_annual_return_pct =
+        (cumulative_return.powf(252.0 / (num_tests * TEST_WINDOW_LENGTH) as f64) - 1.0) * 100.0;
+    println!("Average annual return: {:.3}%", final_annual_return_pct);
 
     Ok(())
 }
