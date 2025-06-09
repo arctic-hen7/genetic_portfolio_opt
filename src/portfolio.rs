@@ -3,7 +3,7 @@ use core::f64;
 use genetic::{Individual, NullTracker};
 use ordered_float::NotNan;
 use rand::Rng;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::ParallelIterator;
 use std::hash::Hash;
 
 pub(crate) static ZERO: NotNan<f64> = unsafe { NotNan::new_unchecked(0.0) };
@@ -79,8 +79,8 @@ impl<'p, 'd> Portfolio<'p, 'd> {
             .data()
             // Turn each row into the portfolio's performance at that point
             .map(|row| {
-                row.par_iter()
-                    .zip(self.weights.par_iter())
+                row.iter()
+                    .zip(self.weights.iter())
                     .map(|(r, weight)| r * **weight)
                     .sum::<f64>()
                     + 1.0
@@ -122,8 +122,8 @@ impl<'p, 'd> Individual for Portfolio<'p, 'd> {
             // Now multiply each element of the row by the appropriate weight and sum them all
             // together. This leaves us with an iterator of combined returns
             .map(|row| {
-                row.par_iter()
-                    .zip(self.weights.par_iter())
+                row.iter()
+                    .zip(self.weights.iter())
                     .map(|(r, weight)| r * **weight)
                     .sum::<f64>()
             })
