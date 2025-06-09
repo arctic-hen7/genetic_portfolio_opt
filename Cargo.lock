@@ -375,6 +375,7 @@ dependencies = [
 [[package]]
 name = "genetic"
 version = "0.1.0"
+source = "git+ssh://git@github.com/arctic-hen7/genetic.git#28a9327bb3cd270e5edacaf37aa3bbd41bea680f"
 dependencies = [
  "frunk",
  "num-traits",

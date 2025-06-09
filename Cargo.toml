@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-genetic = { version = "0.1", path = "../genetic_algorithm_learning" }
+genetic = { version = "0.1", git = "ssh://git@github.com/arctic-hen7/genetic.git" }
 ordered-float = "5.0.0"
 rand = "0.9.1"
 rand_distr = "0.5.1"
