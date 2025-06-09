@@ -1,4 +1,4 @@
-use crate::{algorithm::AlgorithmInstance, portfolio::Portfolio};
+use crate::{data::DataHandle, params::Parameters, portfolio::Portfolio};
 use genetic::{DefaultRng, Generator};
 use ordered_float::NotNan;
 use rand::{Rng, SeedableRng};
@@ -9,18 +9,19 @@ use std::sync::LazyLock;
 /// The uniform distribution from 0 to 1. We keep this global for minor speed improvements.
 static UNIFORM_0_1: LazyLock<Uniform<f64>> = LazyLock::new(|| Uniform::new(0.0, 1.0).unwrap());
 
-/// A dedicated and optimised generator for portfolios with a given number of assets.
-pub struct PortfolioGenerator<'a> {
-    handle: &'a AlgorithmInstance,
+/// A dedicated and optimised generator for portfolios over the given parameters.
+pub struct PortfolioGenerator<'p, 'd> {
+    params: &'p Parameters,
+    data: DataHandle<'d>,
 }
-impl<'a> PortfolioGenerator<'a> {
-    /// Creates a new portfolio generator for portfolios over the given algorithm handle.
-    pub fn new(handle: &'a AlgorithmInstance) -> Self {
-        PortfolioGenerator { handle }
+impl<'p, 'd> PortfolioGenerator<'p, 'd> {
+    /// Creates a new portfolio generator for portfolios over the given parameters and data.
+    pub fn new(params: &'p Parameters, data: DataHandle<'d>) -> Self {
+        PortfolioGenerator { params, data }
     }
 }
-impl<'a> Generator<Portfolio<'a>> for PortfolioGenerator<'a> {
-    fn generate(&self, size: usize, rng: &mut impl Rng) -> Vec<Portfolio<'a>> {
+impl<'p, 'd> Generator<Portfolio<'p, 'd>> for PortfolioGenerator<'p, 'd> {
+    fn generate(&self, size: usize, rng: &mut impl Rng) -> Vec<Portfolio<'p, 'd>> {
         // Generate in parallel (slightly faster) using a global seed and per-iteration re-seeding
         // TODO: Benchmark against sequential
         let global_seed = rng.random::<u64>();
@@ -29,8 +30,8 @@ impl<'a> Generator<Portfolio<'a>> for PortfolioGenerator<'a> {
             .map(|idx| {
                 let mut rng = DefaultRng::seed_from_u64(idx as u64 ^ global_seed);
 
-                let portfolio = generate_portfolio(self.handle.n_assets(), &mut rng);
-                Portfolio::new(portfolio, self.handle)
+                let portfolio = generate_portfolio(self.data.n_assets(), &mut rng);
+                Portfolio::new(portfolio, self.params, self.data)
             })
             .collect()
     }

@@ -1,100 +1,120 @@
-mod algorithm;
+mod data;
 mod generator;
+mod params;
 mod parse_csv;
 mod portfolio;
 
-use algorithm::AlgorithmInstance;
+use data::Data;
 use generator::PortfolioGenerator;
-use genetic::{selectors::TournamentSelector, SimulationBuilder, StaticElitistUpdater};
+use genetic::{selectors::TournamentSelector, Individual, SimulationBuilder, StaticElitistUpdater};
+use params::Parameters;
 use portfolio::Portfolio;
-use std::{fs::File, io::BufReader};
 
 const NUM_TRADING_DAYS: usize = 252;
 const RISK_FREE_RATE_PA: f64 = 0.051;
+const WINDOW_LENGTH: usize = NUM_TRADING_DAYS * 5;
+const TEST_WINDOW_LENGTH: usize = WINDOW_LENGTH / 3;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Compute the daily risk-free rate and report
-    let daily_risk_free_rate =
-        ((1.0 + RISK_FREE_RATE_PA).powf(1.0 / NUM_TRADING_DAYS as f64) - 1.0) * 100.0;
-    println!("Using daily risk-free rate {:.3}%", daily_risk_free_rate);
+    let daily_risk_free_rate = (1.0 + RISK_FREE_RATE_PA).powf(1.0 / NUM_TRADING_DAYS as f64) - 1.0;
+    println!(
+        "Using daily risk-free rate {:.3}%",
+        daily_risk_free_rate * 100.0
+    );
 
     // Prepare the algorithm (parsing the data)
-    let algorithm = AlgorithmInstance::new(
-        daily_risk_free_rate,
-        0.25,
-        BufReader::new(File::open("data/unisuper_clean.csv")?),
-    )?;
-    println!("Parsed {} observations.", algorithm.n_obs());
+    let params = Parameters::new(daily_risk_free_rate, 0.25);
+    let data = Data::from_file("asset_data/daily_returns.csv")?;
+    println!("Parsed {} observations.", data.all().n_obs());
 
     println!();
 
-    // Compute the fitness of each singleton portfolio and report
-    let raw_fitnesses = algorithm
-        .raw_fitnesses()
-        .map(|(name, fitness)| format!("  - {name}: {fitness:.3}Ω"))
-        .collect::<Vec<_>>();
-    let raw_fitnesses_str = raw_fitnesses.join("\n");
-    println!("Omega ratios for singleton portfolios:");
-    println!("{raw_fitnesses_str}");
+    // Generate a random seed to use for every optimisation
+    let seed = rand::random::<u64>();
 
-    // Run the algorithm
-    let solutions = SimulationBuilder::<Portfolio>::new()
-        .with_selector(TournamentSelector::new(150))
-        .with_updater(StaticElitistUpdater::new_worst(10))
-        .with_generator(PortfolioGenerator::new(&algorithm))
-        .with_initial_population_size(10_000)
-        .max_generations(100)
-        .with_seed(0)
-        .run()?;
+    let mut training_range = 0..WINDOW_LENGTH;
+    loop {
+        // Advance the training range by the length of the testing window
+        training_range =
+            (training_range.start + TEST_WINDOW_LENGTH)..(training_range.end + TEST_WINDOW_LENGTH);
+        // The testing range will then be the *next* testing window after that
+        let mut testing_range = training_range.end..(training_range.end + TEST_WINDOW_LENGTH);
 
-    println!();
-
-    // Report the best portfolio found by the algorithm and its fitness
-    let best_weights = solutions
-        .best()
-        .unwrap()
-        .weights()
-        .map(|(name, weight)| format!("  - {name}: {:.2}%", weight * 100.0))
-        .collect::<Vec<_>>()
-        .join("\n");
-    println!(
-        "Best Omega ratio: {:.3}Ω",
-        solutions.best().unwrap().fitness()
-    );
-    println!("Best solution:");
-    println!("{best_weights}");
-
-    println!();
-
-    // Work out if any of the singletons did better
-    let mut outperformers = Vec::new();
-    let mut best_singleton = (String::new(), 0.0);
-    for (name, fitness) in algorithm.raw_fitnesses() {
-        if fitness > *solutions.best().unwrap().fitness() {
-            outperformers.push(format!("  - {name}: {fitness:.3}Ω"));
+        // If the training range is longer than the data, we can't train any more
+        if training_range.end > data.all().n_obs() {
+            break;
         }
-        if fitness > best_singleton.1 {
-            best_singleton = (name.to_string(), fitness);
+        // But if the training range is within and the testing range is without, we can still
+        // train, we'll just be testing on a shorter period
+        if testing_range.end > data.all().n_obs() {
+            testing_range.end = data.all().n_obs();
         }
-    }
-    let outperformers_str = outperformers.join("\n");
-    println!("Outperforming singletons:");
-    if outperformers.is_empty() {
-        let better_by = *solutions.best().unwrap().fitness() / best_singleton.1 - 1.0;
+
+        // By the above checks, these won't panic
+        let training_data = data.handle(training_range.clone());
+        let testing_data = data.handle(testing_range);
+
         println!(
-            "  - None ({better_by:.2}% better than best singleton {})",
-            best_singleton.0
+            "Training on data from {} to {} ({} observations); testing on data from {} to {} ({} observations)",
+            training_data.start_date(),
+            training_data.end_date(),
+            training_data.n_obs(),
+            testing_data.start_date(),
+            testing_data.end_date(),
+            testing_data.n_obs()
         );
-    } else {
-        println!("{outperformers_str}");
+
+        // Train for the best portfolio in the training data
+        let solutions = SimulationBuilder::<Portfolio>::new()
+            .with_selector(TournamentSelector::new(250))
+            .with_updater(StaticElitistUpdater::new_worst(10))
+            .with_generator(PortfolioGenerator::new(&params, training_data))
+            .with_initial_population_size(100_000)
+            .max_generations(250)
+            .with_seed(seed)
+            .run()?;
+        let best_portfolio = solutions.best().unwrap().with_data(testing_data);
+        let best_fitness = best_portfolio.fitness();
+        let best_cumul_return = best_portfolio.cumulative_return();
+        let best_cumul_return_pct = (best_cumul_return - 1.0) * 100.0;
+        let best_annual_return_pct =
+            (best_cumul_return.powf(252.0 / testing_data.n_obs() as f64) - 1.0) * 100.0;
+
+        // Check if the best portfolio found is better than the best singletons (over the test
+        // period)
+        let mut outperformers = Vec::new();
+        let mut best_singleton = (String::new(), 0.0);
+        for (name, fitness) in testing_data.raw_fitnesses(&params) {
+            if fitness > *best_fitness {
+                outperformers.push(format!("  - {name}: {fitness:.3}Ω"));
+            }
+            if fitness > best_singleton.1 {
+                best_singleton = (name.to_string(), fitness);
+            }
+        }
+        let outperformers_report = if outperformers.is_empty() {
+            "No outperforming singletons.".to_string()
+        } else {
+            format!("Outperforming singletons:\n{}", outperformers.join("\n"))
+        };
+
+        // Report the best portfolio found by the algorithm and its fitness
+        let best_weights = best_portfolio
+            .weights()
+            .map(|(name, weight)| format!("  - {name}: {:.2}%", weight * 100.0))
+            .collect::<Vec<_>>()
+            .join("\n");
+        println!("Best Omega ratio: {:.3}Ω", best_fitness);
+        println!("Best solution:");
+        println!("{best_weights}");
+        println!("Omega ratio: {best_fitness:.3}Ω");
+        println!("Return rate: {best_annual_return_pct:.3}% (cum: {best_cumul_return_pct:.3}%)");
+        println!();
+        println!("{outperformers_report}");
     }
-
-    println!();
-
     // Report the seed for reproducibility
-    println!("Seed: {}", solutions.seed());
-
-    // TODO: Backtest, also compute Omegas for each individual allocation
+    println!("Seed: {}", seed);
 
     Ok(())
 }

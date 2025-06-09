@@ -1,9 +1,8 @@
+use crate::{data::DataHandle, generator::generate_portfolio, params::Parameters};
 use genetic::{Individual, NullTracker};
 use ordered_float::NotNan;
 use rand::Rng;
 use std::hash::Hash;
-
-use crate::{algorithm::AlgorithmInstance, generator::generate_portfolio};
 
 pub(crate) static ZERO: NotNan<f64> = unsafe { NotNan::new_unchecked(0.0) };
 pub(crate) static ONE: NotNan<f64> = unsafe { NotNan::new_unchecked(1.0) };
@@ -11,47 +10,100 @@ pub(crate) static ONE: NotNan<f64> = unsafe { NotNan::new_unchecked(1.0) };
 /// A single candidate portfolio. This is a vector of weights that defines an investment strategy
 /// over the assets under consideration, where all weights are non-negative and sum to 1.0.
 ///
-/// The lifetime parameter here is used for a reference to the algorithm context in which this is
-/// considered as a candidate solution.
-#[derive(Clone, Debug)]
-pub struct Portfolio<'a> {
+/// The lifetime parameter here is used for a reference to the parameter/data context in which this
+/// is considered as a candidate solution.
+#[derive(Debug)]
+pub struct Portfolio<'p, 'd> {
     // NOTE: Guaranteed by `PortfolioGenerator` to have the same length as the number of assets
     weights: Vec<NotNan<f64>>,
-    handle: &'a AlgorithmInstance,
+    params: &'p Parameters,
+    data: DataHandle<'d>,
 }
-impl<'a> Portfolio<'a> {
-    /// Creates a new [`Portfolio`] from the given weights and algorithm context handle.
-    pub(crate) fn new(weights: Vec<NotNan<f64>>, handle: &'a AlgorithmInstance) -> Self {
-        Self { weights, handle }
+impl Clone for Portfolio<'_, '_> {
+    fn clone(&self) -> Self {
+        Self {
+            weights: self.weights.clone(),
+            params: self.params,
+            data: self.data.clone(),
+        }
+    }
+}
+impl<'p, 'd> Portfolio<'p, 'd> {
+    /// Creates a new [`Portfolio`] from the given weights, data, and parameters
+    pub(crate) fn new(
+        weights: Vec<NotNan<f64>>,
+        params: &'p Parameters,
+        data: DataHandle<'d>,
+    ) -> Self {
+        Self {
+            weights,
+            params,
+            data,
+        }
     }
 
     /// Returns an iterator of the weights this portfolio assigns to each asset, where the first
     /// element is the asset name and the second the weight, which is guaranteed not to be NaN.
-    pub fn weights<'s>(&'s self) -> impl Iterator<Item = (&'a str, f64)> + 's {
-        self.handle
-            .asset_names
-            .iter()
+    pub fn weights<'s: 'p>(&'s self) -> impl Iterator<Item = (&'p str, f64)> + 's {
+        self.data
+            .asset_names()
             .zip(self.weights.iter())
-            .map(move |(name, weight)| (name.as_str(), **weight))
+            .map(move |(name, weight)| (name, **weight))
+    }
+
+    /// Returns a new portfolio with the same weights as this one, over the given data period. This
+    /// can be used to easily test a portfolio in a different data period than the one it was
+    /// trained in.
+    ///
+    /// Note: when a portfolio comes out of the training algorithm, it will have the data for the
+    /// training period.
+    pub fn with_data<'new_d: 'd>(&self, data: DataHandle<'new_d>) -> Portfolio<'p, 'new_d> {
+        Portfolio {
+            weights: self.weights.clone(),
+            params: self.params,
+            data,
+        }
+    }
+
+    /// Returns the cumulative return of this portfolio over the data handle embedded. When a
+    /// [`Portfolio`] is returned from the training algorithm, this will return its performance
+    /// over the training window, so typically you'll call [`Self::with_data`] first to change this
+    /// window.
+    ///
+    /// Note: the returned `f64` is guaranteed not to be NaN.
+    pub fn cumulative_return(&self) -> f64 {
+        *self
+            .data
+            .data()
+            // Turn each row into the portfolio's performance at that point
+            .map(|row| {
+                row.iter()
+                    .zip(self.weights.iter())
+                    .map(|(r, weight)| r * weight)
+                    .sum::<NotNan<f64>>()
+                    + ONE
+            })
+            .product::<NotNan<f64>>()
     }
 }
 // Manual implementations of `PartialEq`, `Eq`, and `Hash` that ignore the `handle`
-impl<'a> PartialEq for Portfolio<'a> {
+impl PartialEq for Portfolio<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
         self.weights == other.weights
     }
 }
-impl<'a> Eq for Portfolio<'a> {}
-impl<'a> Hash for Portfolio<'a> {
+impl Eq for Portfolio<'_, '_> {}
+impl Hash for Portfolio<'_, '_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.weights.hash(state);
     }
 }
 
-impl<'a> Individual for Portfolio<'a> {
+impl<'p, 'd> Individual for Portfolio<'p, 'd> {
     type Fitness = NotNan<f64>;
     type Tracker = NullTracker;
 
+    // We need parameters and a data handle to generate a portfolio
     fn generate(_rng: &mut impl Rng) -> Self {
         unimplemented!("portfolio generation should be done using PortfolioGenerator")
     }
@@ -63,10 +115,8 @@ impl<'a> Individual for Portfolio<'a> {
     // Fitness is the omega ratio of the weighted portfolio of assets
     fn fitness(&self) -> Self::Fitness {
         let (numerator, denominator) = self
-            .handle
-            .assets
-            // Iterate through the *rows*
-            .iter()
+            .data
+            .data()
             // Now multiply each element of the row by the appropriate weight and sum them all
             // together. This leaves us with an iterator of combined returns
             .map(|row| {
@@ -79,8 +129,8 @@ impl<'a> Individual for Portfolio<'a> {
             //   - Numerator = sum_t(max(0, weighted_r - theta))
             //   - Denominator = sum_t(max(0, theta - weighted_r))
             .fold((ZERO, ZERO), |(numerator, denominator), weighted_r| {
-                let gain = weighted_r - self.handle.theta;
-                let loss = self.handle.theta - weighted_r;
+                let gain = weighted_r - self.params.risk_free_rate();
+                let loss = self.params.risk_free_rate() - weighted_r;
 
                 (numerator + gain.max(ZERO), denominator + loss.max(ZERO))
             });
@@ -109,17 +159,18 @@ impl<'a> Individual for Portfolio<'a> {
 
         Portfolio {
             weights: child,
-            handle: self.handle,
+            params: self.params,
+            data: self.data,
         }
     }
 
     // Mutate by generating a noise portfolio and jittering ever so slightly toward it.
     fn mutate(&mut self, _tracker: &Self::Tracker, rng: &mut impl Rng) {
         let noise = generate_portfolio(self.weights.len(), rng);
-        // SAFETY: We'll never produce a random NaN (`mutation_max_epsilon` also guaranteed to be
+        // SAFETY: We'll never produce a random NaN (`mutation_max_jitter` also guaranteed to be
         // not NaN)
         let epsilon = unsafe {
-            NotNan::new_unchecked(rng.random_range(0.0..=*self.handle.mutation_max_epsilon))
+            NotNan::new_unchecked(rng.random_range(0.0..=*self.params.mutation_max_jitter()))
         };
 
         self.weights
