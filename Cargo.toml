@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+clap = { version = "4.5.40", features = ["derive"] }
 genetic = { version = "0.1", git = "ssh://git@github.com/arctic-hen7/genetic.git" }
+libc = "0.2.172"
 ordered-float = "5.0.0"
 rand = "0.9.1"
 rand_distr = "0.5.1"

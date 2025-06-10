@@ -1,21 +1,5 @@
-use std::{io::BufRead, num::ParseFloatError};
-use thiserror::Error;
-
-/// An error encountered while trying to parse a CSV file of assets.
-#[derive(Error, Debug)]
-pub enum CsvParseError {
-    #[error("io error occurred while reading csv file")]
-    Io(#[from] std::io::Error),
-    #[error("failed to parse return at row #{row}, column #{col} as f64")]
-    NotF64 {
-        row: usize,
-        col: usize,
-        #[source]
-        source: ParseFloatError,
-    },
-    #[error("found NaN at row #{row}, column #{col}")]
-    NaN { row: usize, col: usize },
-}
+use crate::{errors::CsvParseError, Float};
+use std::io::BufRead;
 
 /// Parses a CSV file of asset returns given through a reader handle. This returns the asset names,
 /// the dates under consideration, and the rows of return values.
@@ -23,7 +7,7 @@ pub enum CsvParseError {
 /// For further details, see [`AlgorithmHandle::new`].
 pub fn parse_csv(
     mut assets_csv: impl BufRead,
-) -> Result<(Vec<String>, Vec<String>, Vec<Vec<f64>>), CsvParseError> {
+) -> Result<(Vec<String>, Vec<String>, Vec<Vec<Float>>), CsvParseError> {
     // Read the header line to get the asset names, skipping the first one (should be the date
     // column)
     let mut header_line = String::new();
@@ -36,8 +20,8 @@ pub fn parse_csv(
 
     // Stores whether or not we've seen the start of each asset (i.e. the first non-0.0 value)
     let mut seen_start: Vec<bool> = vec![false; asset_names.len()];
-    // Stores the raw asset data, parsed as `f64`s
-    let mut asset_rows: Vec<Vec<f64>> = Vec::new();
+    // Stores the raw asset data, parsed as `Float`s
+    let mut asset_rows: Vec<Vec<Float>> = Vec::new();
     // Stores the dates for which we have asset data
     let mut dates = Vec::new();
 
@@ -49,15 +33,15 @@ pub fn parse_csv(
         // Read the date (don't add it yet though, just in case we're in a dropping phase)
         let date = parts.next().unwrap().to_string();
 
-        let mut row: Vec<f64> = Vec::new();
+        let mut row: Vec<Float> = Vec::new();
         let mut should_drop = true; // Starts true, false once we see non-zero
         for (col_idx, value_str) in parts.enumerate() {
-            // Parse the value as an f64
+            // Parse the value as an Float
             let value =
                 value_str
                     .trim()
-                    .parse::<f64>()
-                    .map_err(|source| CsvParseError::NotF64 {
+                    .parse::<Float>()
+                    .map_err(|source| CsvParseError::NotFloat {
                         row: row_idx,
                         col: col_idx,
                         source,

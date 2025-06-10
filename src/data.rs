@@ -1,10 +1,7 @@
 use crate::{
-    params::Parameters,
-    parse_csv::{parse_csv, CsvParseError},
-    portfolio::Portfolio,
+    errors::CsvParseError, params::Parameters, parse_csv::parse_csv, portfolio::Portfolio, Float,
 };
 use genetic::Individual;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{io::BufRead, ops::Range, path::Path};
 
 /// Historical data for the assets being optimised. This is likely to be very large in memory.
@@ -17,7 +14,7 @@ pub struct Data {
     /// is the number of assets, while that of the outer vector is the number of returns. This
     /// allows more efficient iterator zipping for combining returns into weighted portfolios for
     /// fitness computation. It's also easier to read directly from a CSV file.
-    assets: Vec<Vec<f64>>,
+    assets: Vec<Vec<Float>>,
     /// The names of each asset.
     asset_names: Vec<String>,
     /// The dates for which we have recorded asset data. These are likely to not be continuous, as
@@ -141,9 +138,13 @@ impl<'d> DataHandle<'d> {
 
     /// Returns an iterator over the rows of data we have (i.e. each element is a vector of the
     /// returns for each asset at that point).
-    pub fn data(&self) -> impl ParallelIterator<Item = &Vec<f64>> {
-        // Return only the rows in the range
-        self.data.assets[self.start_idx..self.end_idx].par_iter()
+    pub fn data(&self) -> &[Vec<Float>] {
+        // SAFETY: We know `self.start_idx` is within bounds
+        let ptr = unsafe { self.data.assets.as_ptr().add(self.start_idx) };
+        let len = self.end_idx - self.start_idx;
+        // SAFETY: We are guaranteed that `self.start_idx` and `self.end_idx` are within bounds of
+        // `self.data.assets`, and that `self.end_idx` is greater than `self.start_idx`.
+        unsafe { std::slice::from_raw_parts(ptr, len) }
     }
 
     /// Returns the fitness of a portfolio using *only* each asset. This returns an iterator, where
@@ -154,7 +155,7 @@ impl<'d> DataHandle<'d> {
     pub fn raw_fitnesses<'s, 'p: 's>(
         &'s self,
         params: &'p Parameters,
-    ) -> impl Iterator<Item = (&'s str, f64)> + 's {
+    ) -> impl Iterator<Item = (&'s str, Float)> + 's {
         self.asset_names()
             .enumerate()
             .map(|(asset_idx, asset_name)| {

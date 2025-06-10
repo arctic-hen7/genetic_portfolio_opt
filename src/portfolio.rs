@@ -1,10 +1,10 @@
-use crate::{data::DataHandle, generator::generate_portfolio, params::Parameters};
-use core::f64;
+use crate::{data::DataHandle, generator::generate_portfolio, params::Parameters, Float};
 use genetic::{Individual, NullTracker};
+use libc::memcmp;
 use ordered_float::NotNan;
 use rand::Rng;
-use rayon::iter::ParallelIterator;
-use std::hash::Hash;
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use std::{ffi::c_void, hash::Hash};
 
 /// A single candidate portfolio. This is a vector of weights that defines an investment strategy
 /// over the assets under consideration, where all weights are non-negative and sum to 1.0.
@@ -14,7 +14,7 @@ use std::hash::Hash;
 #[derive(Debug)]
 pub struct Portfolio<'p, 'd> {
     // NOTE: Guaranteed by `PortfolioGenerator` to have the same length as the number of assets.
-    weights: Vec<f64>,
+    weights: Vec<Float>,
     params: &'p Parameters,
     data: DataHandle<'d>,
 }
@@ -29,7 +29,7 @@ impl Clone for Portfolio<'_, '_> {
 }
 impl<'p, 'd> Portfolio<'p, 'd> {
     /// Creates a new [`Portfolio`] from the given weights, data, and parameters
-    pub(crate) fn new(weights: Vec<f64>, params: &'p Parameters, data: DataHandle<'d>) -> Self {
+    pub(crate) fn new(weights: Vec<Float>, params: &'p Parameters, data: DataHandle<'d>) -> Self {
         Self {
             weights,
             params,
@@ -39,7 +39,7 @@ impl<'p, 'd> Portfolio<'p, 'd> {
 
     /// Returns an iterator of the weights this portfolio assigns to each asset, where the first
     /// element is the asset name and the second the weight, which is guaranteed not to be NaN.
-    pub fn weights<'s: 'p>(&'s self) -> impl Iterator<Item = (&'p str, f64)> + 's {
+    pub fn weights<'s: 'p>(&'s self) -> impl Iterator<Item = (&'p str, Float)> + 's {
         self.data
             .asset_names()
             .zip(self.weights.iter())
@@ -65,25 +65,41 @@ impl<'p, 'd> Portfolio<'p, 'd> {
     /// over the training window, so typically you'll call [`Self::with_data`] first to change this
     /// window.
     ///
-    /// Note: the returned `f64` is guaranteed not to be NaN.
-    pub fn cumulative_return(&self) -> f64 {
+    /// Note: the returned `Float` is guaranteed not to be NaN.
+    pub fn cumulative_return(&self) -> Float {
         self.data
             .data()
+            .into_par_iter()
             // Turn each row into the portfolio's performance at that point
             .map(|row| {
                 row.iter()
                     .zip(self.weights.iter())
                     .map(|(r, weight)| r * weight)
-                    .sum::<f64>()
+                    .sum::<Float>()
                     + 1.0
             })
-            .product::<f64>()
+            .product::<Float>()
     }
 }
-// Manual implementations of `PartialEq`, `Eq`, and `Hash` that ignore the `handle`
+// Manual implementations of `PartialEq`, `Eq`, and `Hash` that ignore the handles
 impl PartialEq for Portfolio<'_, '_> {
     fn eq(&self, other: &Self) -> bool {
-        self.weights == other.weights
+        // This is a hot path, so we check lumps of bytes using `memcmp`
+        debug_assert!(
+            self.weights.len() == other.weights.len(),
+            "portfolios must have the same number of assets"
+        );
+
+        let byte_len = self.weights.len() * std::mem::size_of::<Float>();
+        // SAFETY: We know `self.weights` and `other.weights` point to at least `byte_len` valid
+        // bytes.
+        unsafe {
+            memcmp(
+                self.weights.as_ptr() as *const c_void,
+                other.weights.as_ptr() as *const c_void,
+                byte_len,
+            ) == 0
+        }
     }
 }
 impl Eq for Portfolio<'_, '_> {}
@@ -91,9 +107,9 @@ impl Hash for Portfolio<'_, '_> {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         // We need a custom hash implementation because we're working with floats, which don't hash
         // (no total order). However, we can reinterpret the floats as integers and hash those
-        // happily. This is generic over whatever kind of float we use (`f32` or `f64`).
+        // happily. This is generic over whatever kind of float we use (`f32` or `Float`).
 
-        // SAFETY: f64 is exactly 8 bytes and has the same alignment
+        // SAFETY: Float is exactly 8 bytes and has the same alignment
         // requirements as u64, so we can re‐interpret the memory
         // as a u8‐byte slice of length len*8.
         //
@@ -102,7 +118,7 @@ impl Hash for Portfolio<'_, '_> {
         let ptr = self.weights.as_ptr() as *const u8;
         // In our array, we're splitting every float into 4/8 bytes, so this is the correct
         // calculation!
-        let num_elems = self.weights.len() * std::mem::size_of::<f64>();
+        let num_elems = self.weights.len() * std::mem::size_of::<Float>();
         let bytes: &[u8] = unsafe { std::slice::from_raw_parts(ptr, num_elems) };
         state.write(bytes);
         // NOTE: We don't write the number of elements because in a given simulation, every
@@ -112,7 +128,7 @@ impl Hash for Portfolio<'_, '_> {
 }
 
 impl<'p, 'd> Individual for Portfolio<'p, 'd> {
-    type Fitness = NotNan<f64>;
+    type Fitness = NotNan<Float>;
     type Tracker = NullTracker;
 
     // We need parameters and a data handle to generate a portfolio
@@ -126,39 +142,80 @@ impl<'p, 'd> Individual for Portfolio<'p, 'd> {
 
     // Fitness is the omega ratio of the weighted portfolio of assets
     fn fitness(&self) -> Self::Fitness {
+        let weights = &self.weights;
+        let rfr = self.params.risk_free_rate();
+
+        // single pass: each thread accumulates its own (num, den)
         let (numerator, denominator) = self
             .data
             .data()
-            // Now multiply each element of the row by the appropriate weight and sum them all
-            // together. This leaves us with an iterator of combined returns
-            .map(|row| {
-                row.iter()
-                    .zip(self.weights.iter())
-                    .map(|(r, weight)| r * weight)
-                    .sum::<f64>()
-            })
-            // Now compute the numerator and denominator of the Omega ratio.
-            //   - Numerator = sum_t(max(0, weighted_r - theta))
-            //   - Denominator = sum_t(max(0, theta - weighted_r))
+            .into_par_iter()
+            // PERF: This needs to be faster!
             .fold(
-                || (0.0, 0.0),
-                |(numerator, denominator), weighted_r| {
-                    let gain = weighted_r - self.params.risk_free_rate();
-                    let loss = self.params.risk_free_rate() - weighted_r;
+                || (0.0 as Float, 0.0 as Float),
+                |(mut numer, mut denom), row| {
+                    // 1. dot(row, weights)
+                    let len = weights.len();
+                    let mut sum = 0.0 as Float;
 
-                    (numerator + gain.max(0.0), denominator + loss.max(0.0))
+                    // safe fallback for small or non-x86 targets:
+                    // for i in 0..len { sum += row[i] * weights[i]; }
+
+                    // unsafe pointer loop, zero bounds checks:
+                    unsafe {
+                        let rp = row.as_ptr();
+                        let wp = weights.as_ptr();
+                        for i in 0..len {
+                            sum += *rp.add(i) * *wp.add(i);
+                        }
+                    }
+
+                    // 2. Omega numerator/denominator increment
+                    let diff = sum - rfr;
+                    numer += diff.max(0.0);
+                    denom += (-diff).max(0.0);
+
+                    (numer, denom)
                 },
             )
             .reduce(
-                || (0.0, 0.0),
-                |(num1, den1), (num2, den2)| (num1 + num2, den1 + den2),
+                || (0.0 as Float, 0.0 as Float),
+                |(n1, d1), (n2, d2)| (n1 + n2, d1 + d2),
             );
+
+        // let (numerator, denominator) = self
+        //     .data
+        //     .data()
+        //     // Now multiply each element of the row by the appropriate weight and sum them all
+        //     // together. This leaves us with an iterator of combined returns
+        //     .map(|row| {
+        //         row.iter()
+        //             .zip(self.weights.iter())
+        //             .map(|(r, weight)| r * weight)
+        //             .sum::<Float>()
+        //     })
+        //     // Now compute the numerator and denominator of the Omega ratio.
+        //     //   - Numerator = sum_t(max(0, weighted_r - theta))
+        //     //   - Denominator = sum_t(max(0, theta - weighted_r))
+        //     .fold(
+        //         || (0.0, 0.0),
+        //         |(numerator, denominator), weighted_r| {
+        //             let gain = weighted_r - self.params.risk_free_rate();
+        //             let loss = self.params.risk_free_rate() - weighted_r;
+        //
+        //             (numerator + gain.max(0.0), denominator + loss.max(0.0))
+        //         },
+        //     )
+        //     .reduce(
+        //         || (0.0, 0.0),
+        //         |(num1, den1), (num2, den2)| (num1 + num2, den1 + den2),
+        //     );
 
         // Handle edge cases
         let omega = if numerator == 0.0 && denominator == 0.0 {
             panic!("assets have zero variation in returns");
         } else if denominator == 0.0 {
-            f64::INFINITY
+            Float::INFINITY
         } else {
             numerator / denominator
         };

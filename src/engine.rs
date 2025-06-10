@@ -1,0 +1,665 @@
+use crate::{
+    data::Data, errors::EngineBuildError, generator::PortfolioGenerator, params::Parameters,
+    portfolio::Portfolio, Float,
+};
+use genetic::{
+    error::SimulationError, FitnessPlateauStopCriterion, Individual, NullPairSelector,
+    PairSelector, SimulationBuilder, StaticElitistUpdater,
+};
+use ordered_float::NotNan;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use std::{collections::VecDeque, ops::Range};
+
+pub const DEFAULT_MAX_GENERATIONS: usize = 150;
+pub const DEFAULT_ELITES: usize = 5;
+pub const DEFAULT_POPULATION_SIZE: usize = 20_000;
+pub const DEFAULT_PLATEAU_WINDOW: usize = 10;
+pub const DEFAULT_PLATEAU_SLOPE_THRESHOLD: Float = 0.0001;
+pub const DEFAULT_PLATEAU_GENERATIONS: usize = 10;
+
+/// An engine that performs portfolio optimisation over a dataset using a genetic algorithm. This
+/// is extensively configurable.
+pub struct Engine<S: for<'a> PairSelector<Portfolio<'a, 'a>>> {
+    /// The random seed for the optimiser (used for reproducibility).
+    seed: u64,
+    /// The data to use for the portfolio optimisation. This should be in periodic returns.
+    data: Data,
+    /// The hyperparameters for the portfolio optimiser.
+    params: Parameters,
+    /// The pair selector to use for selecting pairs of assets to optimise.
+    selector: S,
+    /// The maximum number of generations to run the optimiser for.
+    max_generations: usize,
+    /// The number of "elites" to keep in each generation (0 if no elitism).
+    elites: usize,
+    /// The population size for the optimiser.
+    population_size: usize,
+
+    plateau_slope_threshold: NotNan<Float>,
+    plateau_window: usize,
+    plateau_generations: usize,
+
+    /// The ranges for training/testing windows. This is pre-computed at startup.
+    ranges: VecDeque<SimulationRanges>,
+}
+impl<S: for<'a> PairSelector<Portfolio<'a, 'a>> + Clone + Send + Sync> Engine<S> {
+    /// Creates a new [`EngineBuilder`].
+    pub fn builder() -> EngineBuilder<NullPairSelector> {
+        EngineBuilder::new()
+    }
+
+    /// Runs the given training/testing window, returning the metrics recorded.
+    fn run_ranges(
+        &self,
+        SimulationRanges {
+            training_range,
+            testing_range,
+        }: &SimulationRanges,
+    ) -> Result<Metrics, SimulationError> {
+        // Get the training and testing data handles
+        let training_data = self.data.handle(training_range.clone());
+        let (testing_data, is_internal_test) = if testing_range.is_empty() {
+            (
+                training_data.clone(),
+                true, // If the testing range is empty, we aren't running a proper test
+            )
+        } else {
+            (self.data.handle(testing_range.clone()), false)
+        };
+
+        // Train the best portfolio on the training data
+        let solutions = SimulationBuilder::<Portfolio<'_, '_>>::new()
+            .with_selector(self.selector.clone())
+            // This is fine if we pass zero
+            .with_updater(StaticElitistUpdater::new_worst(self.elites))
+            .with_generator(PortfolioGenerator::new(&self.params, training_data))
+            .with_stop_criterion(FitnessPlateauStopCriterion::new(
+                self.plateau_window,
+                self.plateau_slope_threshold,
+                self.plateau_generations,
+            ))
+            .or_max_generations(self.max_generations)
+            .with_initial_population_size(self.population_size)
+            .with_seed(self.seed)
+            .run()?;
+        // We're guaranteed to have run for at least one generation (max generations and plateau
+        // window are both positive), so this is fine
+        let best_portfolio = solutions.best().unwrap().with_data(testing_data.clone());
+        let best_fitness = best_portfolio.fitness(); // Computes!
+        let best_cumul_return = best_portfolio.cumulative_return();
+
+        let best_weights = best_portfolio
+            .weights()
+            .map(|(name, weight)| (name.to_string(), weight))
+            .collect::<Vec<_>>();
+
+        Ok(Metrics {
+            best_weights,
+            training_start_date: training_data.start_date().to_string(),
+            training_end_date: training_data.end_date().to_string(),
+            training_length: training_data.n_obs(),
+            testing_start_date: testing_data.start_date().to_string(),
+            testing_end_date: testing_data.end_date().to_string(),
+            testing_length: testing_data.n_obs(),
+            test_is_internal: is_internal_test,
+            generations: solutions.num_generations(),
+            seed: self.seed,
+            omega_ratio: *best_fitness,
+            cumulative_return: best_cumul_return,
+        })
+    }
+
+    /// Runs every training/testing run of the portfolio optimiser in parallel. Usually, this is
+    /// what you want. The metrics returned will be in the order of the ranges generated by your
+    /// [`Strategy`] (i.e. in chronological order over the data).
+    ///
+    /// If you want to run single training/testing runs, use [`Self::run_next`].
+    pub fn par_run(&self) -> Result<Vec<Metrics>, SimulationError> {
+        // Run the steps in parallel, collecting the results
+        let mut runs = self
+            .ranges
+            .par_iter()
+            .enumerate()
+            .map(|(idx, ranges)| self.run_ranges(ranges).map(|m| (idx, m)))
+            .collect::<Result<Vec<(usize, Metrics)>, SimulationError>>()?;
+        runs.sort_unstable_by_key(|(idx, _)| *idx);
+        Ok(runs.into_iter().map(|(_, m)| m).collect())
+    }
+
+    /// Runs the next training/testing run of the portfolio optimiser, returning the metrics
+    /// recorded from it. This will return `None` once there are no more ranges to run.
+    ///
+    /// Note: in most situations, [`Self::par_run`] will be substantially more efficient.
+    pub fn run_next(&mut self) -> Option<Result<Metrics, SimulationError>> {
+        // Make sure we have a range
+        if self.ranges.is_empty() {
+            return None;
+        }
+
+        // Run the first step, taking it off so the next call of this method runs the next ranges
+        let ranges = self.ranges.pop_front().unwrap();
+        let metrics = match self.run_ranges(&ranges) {
+            Ok(metrics) => metrics,
+            Err(err) => return Some(Err(err)),
+        };
+
+        Some(Ok(metrics))
+    }
+}
+
+/// A builder for an [`Engine`] that runs portfolio optimisation.
+pub struct EngineBuilder<S: for<'a> PairSelector<Portfolio<'a, 'a>>> {
+    seed: Option<u64>,
+    data: Option<Data>,
+    mutation_max_jitter: Option<Float>,
+    risk_free_rate: Option<Float>,
+    strategy: Option<Strategy>,
+    selector: S,
+    max_generations: Option<usize>,
+    elites: Option<usize>,
+    population_size: Option<usize>,
+    plateau_slope_threshold: Option<Float>,
+    plateau_window: Option<usize>,
+    plateau_generations: Option<usize>,
+}
+impl EngineBuilder<NullPairSelector> {
+    /// Creates a new [`EngineBuilder`].
+    pub fn new() -> Self {
+        EngineBuilder {
+            seed: None,
+            data: None,
+            mutation_max_jitter: None,
+            risk_free_rate: None,
+            strategy: None,
+            selector: NullPairSelector,
+            max_generations: None,
+            elites: None,
+            population_size: None,
+            plateau_slope_threshold: None,
+            plateau_window: None,
+            plateau_generations: None,
+        }
+    }
+}
+
+impl<S: for<'a> PairSelector<Portfolio<'a, 'a>>> EngineBuilder<S> {
+    /// Sets the seed the optimiser will use for reproducibility. If you don't call this, a random
+    /// seed will be used (which can later be extracted).
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self
+    }
+
+    /// Sets the data to use for the portfolio optimisation.
+    pub fn with_data(mut self, data: Data) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    /// Sets the maximum allowed "jitter" for a mutation. Set this low to encourage exploiting
+    /// solutions once they're found, and higher to encourage exploration of new solutions if you
+    /// suspect you're getting caught in local optima.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if you provide a value outside the range [0, 1].
+    pub fn with_max_jitter(mut self, max_jitter: Float) -> Self {
+        assert!(
+            max_jitter >= 0.0 && max_jitter <= 1.0,
+            "max_jitter must be in the range [0, 1]"
+        );
+
+        self.mutation_max_jitter = Some(max_jitter);
+        self
+    }
+
+    /// Sets the risk-free rate of return to optimise relative to. This takes a risk-free rate over
+    /// a period *different* from the one your returns are in. For example, if you had daily
+    /// returns and wanted to use an annual risk-free rate, you would pass the annual rate here,
+    /// and pass 252 as `num_periods` (i.e. 252 trading days in a year). If you have your risk-free
+    /// rate in the same periodic terms as your data, you can use
+    /// [`Self::with_periodic_risk_free_rate`] instead.
+    ///
+    /// This should be provided as a decimal (e.g. 5% should be passed as `0.05`).
+    pub fn with_risk_free_rate(self, risk_free_rate: Float, num_periods: usize) -> Self {
+        // Convert the annual risk-free rate to a periodic one
+        let periodic_risk_free_rate = (1.0 + risk_free_rate).powf(1.0 / num_periods as Float) - 1.0;
+
+        self.with_periodic_risk_free_rate(periodic_risk_free_rate)
+    }
+
+    /// Sets the risk-free rate of return to optimise relative to. This takes a *periodic*
+    /// risk-free rate, meaning if you're working with daily returns, this should be the daily
+    /// risk-free rate. Generally, you'll want to use [`Self::with_risk_free_rate`] instead and
+    /// have it normalise for you.
+    ///
+    /// This should be provided as a decimal (e.g. 0.02% should be passed as `0.0002`).
+    ///
+    /// # Panics
+    ///
+    /// Panics if the gien risk-free rate is `NaN`.
+    pub fn with_periodic_risk_free_rate(mut self, risk_free_rate: Float) -> Self {
+        assert!(!risk_free_rate.is_nan(), "risk_free_rate must not be NaN");
+
+        self.risk_free_rate = Some(risk_free_rate);
+        self
+    }
+
+    /// Sets the strategy to use for backtesting. See [`Strategy`] for details.
+    pub fn with_strategy(mut self, strategy: Strategy) -> Self {
+        self.strategy = Some(strategy);
+        self
+    }
+
+    /// Sets the pair selector to use for selecting pairs of assets to optimise. See the
+    /// documentation for [`PairSelector`] for further details.
+    pub fn with_selector<S2: for<'a> PairSelector<Portfolio<'a, 'a>>>(
+        self,
+        selector: S2,
+    ) -> EngineBuilder<S2> {
+        EngineBuilder {
+            seed: self.seed,
+            data: self.data,
+            mutation_max_jitter: self.mutation_max_jitter,
+            risk_free_rate: self.risk_free_rate,
+            strategy: self.strategy,
+            selector,
+            max_generations: self.max_generations,
+            elites: self.elites,
+            population_size: self.population_size,
+            plateau_slope_threshold: self.plateau_slope_threshold,
+            plateau_window: self.plateau_window,
+            plateau_generations: self.plateau_generations,
+        }
+    }
+
+    /// Sets the maximum number of generations to run the optimiser for. The higher this is, the
+    /// linearly more compute the optimiser can use.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided value is less than or equal to 0.
+    pub fn with_max_generations(mut self, max_generations: usize) -> Self {
+        assert!(
+            max_generations > 0,
+            "max_generations must be greater than 0"
+        );
+
+        self.max_generations = Some(max_generations);
+        self
+    }
+
+    /// Sets the number of "elites" (i.e. best-performing portfolios) to keep in each generation.
+    /// This allows highly explorative (i.e. very high max jitter) algorithms that still hold onto
+    /// their best solutions. This can be fairly small, or set to 0 to disable elitism entirely.
+    pub fn with_elites(mut self, elites: usize) -> Self {
+        self.elites = Some(elites);
+        self
+    }
+
+    /// Sets the population size for the optimiser. This is the number of portfolios that will be
+    /// evaluated in each generation. The higher this is, the more compute the optimiser will use,
+    /// but potentially the better solutions it can find. This should be a large number (typically
+    /// 10k+).
+    pub fn with_population_size(mut self, population_size: usize) -> Self {
+        self.population_size = Some(population_size);
+        self
+    }
+
+    /// Configures the stop criterion for the algorithm. We keep a record of the best-performing
+    /// individuals over the last `plateau_window` generations, and if the difference between the
+    /// fitness of the oldest best individual and newest best individual drops below
+    /// `plateau_slope_threshold` for `plateau_generations` consecutive generations, we will stop the
+    /// algorithm.
+    ///
+    /// A good starting configuration here is `(10, 0.0001, 10)`.
+    pub fn with_halter(
+        mut self,
+        plateau_window: usize,
+        plateau_slope_threshold: Float,
+        plateau_generations: usize,
+    ) -> Self {
+        assert!(
+            plateau_slope_threshold >= 0.0,
+            "plateau slope threshold must be non-negative"
+        );
+        assert!(plateau_window > 0, "plateau window must be greater than 0");
+
+        self.plateau_window = Some(plateau_window);
+        self.plateau_slope_threshold = Some(plateau_slope_threshold);
+        self.plateau_generations = Some(plateau_generations);
+        self
+    }
+
+    /// Builds the engine with the provided parameters.
+    ///
+    /// Note: if you don't choose a selector, this won't throw an error, but the algorithm will
+    /// panic upon its first execution.
+    pub fn build(self) -> Result<Engine<S>, EngineBuildError> {
+        let seed = self.seed.unwrap_or_else(|| rand::random::<u64>());
+        let data = self.data.ok_or(EngineBuildError::NoData)?;
+        let params = Parameters::new(
+            self.risk_free_rate
+                .ok_or(EngineBuildError::NoRiskFreeRate)?,
+            self.mutation_max_jitter
+                .ok_or(EngineBuildError::NoMaxJitter)?,
+        );
+        let strategy = self.strategy.ok_or(EngineBuildError::NoStrategy)?;
+        let max_generations = self.max_generations.unwrap_or(DEFAULT_MAX_GENERATIONS);
+        let elites = self.elites.unwrap_or(DEFAULT_ELITES);
+        let population_size = self.population_size.unwrap_or(DEFAULT_POPULATION_SIZE);
+        let plateau_window = self.plateau_window.unwrap_or(DEFAULT_PLATEAU_WINDOW);
+        // We checked at setting-time that this was positive, so it can't be NaN
+        let plateau_slope_threshold = NotNan::new(
+            self.plateau_slope_threshold
+                .unwrap_or(DEFAULT_PLATEAU_SLOPE_THRESHOLD),
+        )
+        .unwrap();
+        let plateau_generations = self
+            .plateau_generations
+            .unwrap_or(DEFAULT_PLATEAU_GENERATIONS);
+
+        // Now pre-compute the ranges we'll be training/testing over
+        let mut ranges = VecDeque::new();
+        while let Some(next_ranges) = strategy.next_ranges(ranges.back(), data.all().n_obs()) {
+            ranges.push_back(next_ranges);
+        }
+
+        Ok(Engine {
+            seed,
+            data,
+            params,
+            selector: self.selector,
+            max_generations,
+            elites,
+            population_size,
+            plateau_slope_threshold,
+            plateau_window,
+            plateau_generations,
+
+            ranges,
+        })
+    }
+}
+
+/// The training/testing strategy we should use for portfolio optimisation.
+pub enum Strategy {
+    /// No backtesting, we'll train on the whole dataset.
+    Full,
+    /// A sliding window strategy, where we have fixed sizes for the training and testing windows,
+    /// and we slide them forward each time by the length of the testing window.
+    ///
+    /// Often, a testing window about half or a third of the size of the training window works
+    /// well.
+    SlidingWindow {
+        training_length: usize,
+        testing_length: usize,
+    },
+    /// An expanding window strategy, where we progressively add more and more training data,
+    /// shifting the testing period forward each time. This has a tendency to learn old regimes,
+    /// and is empirically less helpful than a sliding window on most datasets.
+    ExpandingWindow {
+        initial_training_length: usize,
+        testing_length: usize,
+        increment_length: usize,
+    },
+    /// A static backtest, where `training_fraction` of the data is used for training, and the rest
+    /// is used for testing. This is reasonably fast, and good for experiments.
+    Static { training_fraction: Float },
+}
+impl Strategy {
+    /// Parses a strategy from a string of the form:
+    ///   - `full`
+    ///   - `sliding:<training_length>:<testing_length>`
+    ///   - `expanding:<initial_training_length>:<testing_length>:<increment_length>`
+    ///   - `static:<training_fraction>`
+    pub(crate) fn from_str(s: &str) -> Result<Self, &'static str> {
+        let mut parts = s.split(':');
+        match parts.next() {
+            Some("full") => Ok(Strategy::Full),
+            Some("sliding") => {
+                let training_length = parts
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("sliding window must have training window length")?;
+                let testing_length = parts
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("sliding window must have testing window length")?;
+                Ok(Strategy::SlidingWindow {
+                    training_length,
+                    testing_length,
+                })
+            }
+            Some("expanding") => {
+                let initial_training_length = parts
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("expanding window must have initial training window length")?;
+                let testing_length = parts
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("expanding window must have testing window length")?;
+                let increment_length = parts
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .ok_or("expanding window must have increment length")?;
+                Ok(Strategy::ExpandingWindow {
+                    initial_training_length,
+                    testing_length,
+                    increment_length,
+                })
+            }
+            Some("static") => {
+                let training_fraction = parts
+                    .next()
+                    .and_then(|s| s.parse().ok())
+                    .filter(|f: &Float| *f > 0.0 && *f < 1.0)
+                    .ok_or("static strategy must have training fraction in (0, 1), use `full` to train on everything")?;
+                Ok(Strategy::Static { training_fraction })
+            }
+            _ => Err("unknown strategy, must be one of: full, sliding:<training_length>:<testing_length>, expanding:<initial_training_length>:<testing_length>:<increment_length>, static:<training_fraction>"),
+        }
+    }
+    /// Produces the next ranges for training/testing windows, given the previous ones. The first
+    /// call to this should pass `None`. Once this fucntion returns `None`, there are no more
+    /// ranges to produce.
+    ///
+    /// This can be called many times at startup to run multiple backtests in parallel.
+    fn next_ranges(
+        &self,
+        prev: Option<&SimulationRanges>,
+        n_obs: usize,
+    ) -> Option<SimulationRanges> {
+        match self {
+            Strategy::Full => {
+                // We'll only produce one range, so only output something if we're at the start
+                if prev.is_none() {
+                    Some(SimulationRanges {
+                        training_range: 0..n_obs,
+                        testing_range: 0..0, // No testing range
+                    })
+                } else {
+                    None
+                }
+            }
+            Strategy::Static { training_fraction } => {
+                // We'll only produce one range, so only output something if we're at the start
+                if prev.is_none() {
+                    let training_end = (n_obs as Float * training_fraction) as usize;
+                    Some(SimulationRanges {
+                        training_range: 0..training_end,
+                        testing_range: training_end..n_obs,
+                    })
+                } else {
+                    None
+                }
+            }
+            Strategy::SlidingWindow {
+                training_length,
+                testing_length,
+            } => {
+                if let Some(prev) = prev {
+                    // If expanding the training window would exceed the number of observations,
+                    // we have no more data to test on
+                    if prev.training_range.end + testing_length > n_obs {
+                        None
+                    } else {
+                        // Move both the training and testing windows forward by the length of the
+                        // testing window
+                        Some(SimulationRanges {
+                            training_range: (prev.training_range.start + testing_length)
+                                ..(prev.training_range.end + testing_length),
+                            // We've checked that the training range won't exceed, but the testing
+                            // range might, so cap it
+                            testing_range: (prev.testing_range.start + testing_length)
+                                ..(prev.testing_range.end + testing_length).min(n_obs),
+                        })
+                    }
+                } else {
+                    Some(SimulationRanges {
+                        training_range: 0..*training_length,
+                        testing_range: *training_length..(training_length + testing_length),
+                    })
+                }
+            }
+            Strategy::ExpandingWindow {
+                initial_training_length,
+                testing_length,
+                increment_length,
+            } => {
+                if let Some(prev) = prev {
+                    // If expanding the training window would exceed the number of observations,
+                    // we have no more data to test on
+                    if prev.training_range.end + increment_length > n_obs {
+                        None
+                    } else {
+                        Some(SimulationRanges {
+                            // Expand the training range (keep the start point)
+                            training_range: 0..(prev.training_range.end + increment_length),
+                            // Move the testing range forward by the increment length (making sure
+                            // we don't exceed)
+                            testing_range: (prev.testing_range.start + increment_length)
+                                ..(prev.testing_range.end + increment_length).min(n_obs),
+                        })
+                    }
+                } else {
+                    Some(SimulationRanges {
+                        training_range: 0..*initial_training_length,
+                        testing_range: *initial_training_length
+                            ..(initial_training_length + testing_length),
+                    })
+                }
+            }
+        }
+    }
+}
+
+/// The ranges needed to train and then backtest an optimal portfolio.
+struct SimulationRanges {
+    /// The range to train over, which is guaranteed to be non-empty.
+    training_range: Range<usize>,
+    /// The range to test over, which *may* be empty (e.g. [`Strategy::Full`]).
+    testing_range: Range<usize>,
+}
+
+/// Key metrics for a single run of the portfolio optimiser. These will be collected for each
+/// training/testing run.
+pub struct Metrics {
+    /// The weights of the best portfolio found in this run, as a vector of (asset name, weight)
+    /// pairs. Each weight will be as a decimal (e.g. 5% would be `0.05`).
+    best_weights: Vec<(String, Float)>,
+
+    training_start_date: String,
+    training_end_date: String,
+    training_length: usize,
+
+    testing_start_date: String,
+    testing_end_date: String,
+    testing_length: usize,
+    /// Whether or not this was an internal test (i.e. no testing window, just training). If this
+    /// is true, the testing start/end date and length will be the same as that of the training
+    /// window.
+    test_is_internal: bool,
+
+    generations: usize,
+    seed: u64,
+
+    omega_ratio: Float,
+    cumulative_return: Float,
+    // sharpe_ratio: Float,
+    // sortino_ratio: Float,
+    // max_drawdown: Float,
+}
+impl Metrics {
+    /// Returns the normalised (e.g. annualised) return for the portfolio associated with this run,
+    /// given the number of periods in the normalised form (e.g. if you have daily returns and want
+    /// an annualised return, you would typically pass 252, the number of trading days in a year).
+    ///
+    /// This returns the return as a decimal (e.g. 5% would be returned as `0.05`).
+    pub fn normalised_return(&self, num_periods: usize) -> Float {
+        self.cumulative_return
+            .powf(num_periods as Float / self.testing_length as Float)
+            - 1.0
+    }
+    /// Returns the cumulative return for the portfolio associated with this run, as a decimal
+    /// multiplier (e.g. 5% would be returned as `1.05`).
+    pub fn cumulative_return(&self) -> Float {
+        self.cumulative_return
+    }
+
+    /// Returns the omega ratio for the portfolio associated with this run, which is a measure of
+    /// the portfolio's performance relative to the risk-free rate. This is a ratio, so it will be
+    /// greater than 1.0 if the portfolio outperforms the risk-free rate, and less than 1.0 if it
+    /// underperforms it (on average).
+    pub fn omega_ratio(&self) -> Float {
+        self.omega_ratio
+    }
+
+    /// Returns the weights of the best portfolio found in this run, as a vector of (asset name,
+    /// weight) pairs. Each weight will be as a decimal (e.g. 5% would be `0.05`).
+    pub fn best_weights(&self) -> &[(String, Float)] {
+        &self.best_weights
+    }
+
+    /// Returns the start date of the training window for this run.
+    pub fn training_start_date(&self) -> &str {
+        &self.training_start_date
+    }
+    /// Returns the end date of the training window for this run.
+    pub fn training_end_date(&self) -> &str {
+        &self.training_end_date
+    }
+    /// Returns the length of the training window for this run, in number of observations.
+    pub fn training_length(&self) -> usize {
+        self.training_length
+    }
+    /// Returns the start date of the testing window for this run.
+    pub fn testing_start_date(&self) -> &str {
+        &self.testing_start_date
+    }
+    /// Returns the end date of the testing window for this run.
+    pub fn testing_end_date(&self) -> &str {
+        &self.testing_end_date
+    }
+    /// Returns the length of the testing window for this run, in number of observations.
+    pub fn testing_length(&self) -> usize {
+        self.testing_length
+    }
+
+    /// Returns whether or not this run involved a proper backtest. This will be true if the
+    /// training and testing windows were separate, and false if the strategy was
+    /// [`Strategy::Full`].
+    pub fn is_backtest(&self) -> bool {
+        !self.test_is_internal
+    }
+
+    /// Returns the number of generations the optimiser ran for in this run.
+    pub fn generations(&self) -> usize {
+        self.generations
+    }
+    /// Returns the seed used for this run, which can be used to reproduce the results.
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
+}

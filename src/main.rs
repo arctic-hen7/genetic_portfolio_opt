@@ -1,141 +1,173 @@
 mod data;
+mod engine;
+mod errors;
 mod generator;
 mod params;
 mod parse_csv;
 mod portfolio;
 
+use clap::Parser;
 use data::Data;
-use generator::PortfolioGenerator;
-use genetic::{
-    selectors::TournamentSelector, FitnessPlateauStopCriterion, Individual, SimulationBuilder,
-    StaticElitistUpdater,
+use engine::{
+    Engine, EngineBuilder, Strategy, DEFAULT_ELITES, DEFAULT_MAX_GENERATIONS,
+    DEFAULT_PLATEAU_GENERATIONS, DEFAULT_PLATEAU_SLOPE_THRESHOLD, DEFAULT_PLATEAU_WINDOW,
+    DEFAULT_POPULATION_SIZE,
 };
-use ordered_float::NotNan;
-use params::Parameters;
+use errors::CliError;
+use genetic::{selectors::TournamentSelector, PairSelector};
 use portfolio::Portfolio;
+use std::path::PathBuf;
+
+type Float = f64;
 
 const NUM_TRADING_DAYS: usize = 252;
-const RISK_FREE_RATE_PA: f64 = 0.051;
-const WINDOW_LENGTH: usize = NUM_TRADING_DAYS * 3;
-const TEST_WINDOW_LENGTH: usize = NUM_TRADING_DAYS;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Compute the daily risk-free rate and report
-    let daily_risk_free_rate = (1.0 + RISK_FREE_RATE_PA).powf(1.0 / NUM_TRADING_DAYS as f64) - 1.0;
-    println!(
-        "Using daily risk-free rate {:.3}%",
-        daily_risk_free_rate * 100.0
-    );
+    let opts = Cli::parse();
+    let engine = opts.to_engine()?;
+    let runs = engine.par_run()?;
 
-    // Prepare the algorithm (parsing the data)
-    let params = Parameters::new(daily_risk_free_rate, 0.25);
-    // let data = Data::from_file("asset_data/daily_returns.csv")?;
-    let data = Data::from_file("data/unisuper_clean.new.csv")?;
-    println!("Parsed {} observations.", data.all().n_obs());
-
-    println!();
-
-    // Generate a random seed to use for every optimisation
-    let seed = rand::random::<u64>();
-
-    let mut cumulative_return = 1.0;
-    let mut num_tests = 0;
-    let mut training_range = 0..WINDOW_LENGTH;
-    loop {
-        // Advance the training range by the length of the testing window (rolling forward is best,
-        // learning old regimes is a problem)
-        training_range =
-            (training_range.start + TEST_WINDOW_LENGTH)..(training_range.end + TEST_WINDOW_LENGTH);
-        // The testing range will then be the *next* testing window after that
-        let mut testing_range = training_range.end..(training_range.end + TEST_WINDOW_LENGTH);
-
-        // If the training range is longer than the data, we can't train any more
-        if training_range.end > data.all().n_obs() {
-            break;
-        }
-        // But if the training range is within and the testing range is without, we can still
-        // train, we'll just be testing on a shorter period
-        if testing_range.end > data.all().n_obs() {
-            testing_range.end = data.all().n_obs();
-        }
-
-        // By the above checks, these won't panic
-        let training_data = data.handle(training_range.clone());
-        let testing_data = data.handle(testing_range);
-
+    for (idx, metrics) in runs.iter().enumerate() {
+        println!("=== Run #{} ===", idx + 1);
         println!(
-            "Training on data from {} to {} ({} observations); testing on data from {} to {} ({} observations)",
-            training_data.start_date(),
-            training_data.end_date(),
-            training_data.n_obs(),
-            testing_data.start_date(),
-            testing_data.end_date(),
-            testing_data.n_obs()
+            "Training range: {} to {} ({} observations)",
+            metrics.training_start_date(),
+            metrics.training_end_date(),
+            metrics.training_length()
         );
-
-        // Train for the best portfolio in the training data
-        let solutions = SimulationBuilder::<Portfolio>::new()
-            .with_selector(TournamentSelector::new(150))
-            .with_updater(StaticElitistUpdater::new_worst(5))
-            .with_generator(PortfolioGenerator::new(&params, training_data))
-            .with_stop_criterion(FitnessPlateauStopCriterion::new(
-                10,                           // Window
-                NotNan::new(0.0001).unwrap(), // Slope threshold
-                10,                           // No. of generations below slope threshold
-            ))
-            .or_max_generations(200)
-            .with_initial_population_size(100_000)
-            .with_seed(seed)
-            .run()?;
-        let best_portfolio = solutions.best().unwrap().with_data(testing_data);
-        let best_fitness = best_portfolio.fitness();
-        let best_cumul_return = best_portfolio.cumulative_return();
-        let best_cumul_return_pct = (best_cumul_return - 1.0) * 100.0;
-        let best_annual_return_pct =
-            (best_cumul_return.powf(252.0 / testing_data.n_obs() as f64) - 1.0) * 100.0;
-
-        // Check if the best portfolio found is better than the best singletons (over the test
-        // period)
-        let mut outperformers = Vec::new();
-        let mut best_singleton = (String::new(), 0.0);
-        for (name, fitness) in testing_data.raw_fitnesses(&params) {
-            if fitness > *best_fitness {
-                outperformers.push(format!("  - {name}: {fitness:.3}Ω"));
-            }
-            if fitness > best_singleton.1 {
-                best_singleton = (name.to_string(), fitness);
-            }
-        }
-        let outperformers_report = if outperformers.is_empty() {
-            "No outperforming singletons.".to_string()
-        } else {
-            format!("Outperforming singletons:\n{}", outperformers.join("\n"))
-        };
-
-        // Report the best portfolio found by the algorithm and its fitness
-        let best_weights = best_portfolio
-            .weights()
-            .map(|(name, weight)| format!("  - {name}: {:.2}%", weight * 100.0))
-            .collect::<Vec<_>>()
-            .join("\n");
-        println!("Best Omega ratio: {:.3}Ω", best_fitness);
-        println!("Best solution:");
-        println!("{best_weights}");
-        println!("Omega ratio: {best_fitness:.3}Ω");
-        println!("Return rate: {best_annual_return_pct:.3}% (cum: {best_cumul_return_pct:.3}%)");
+        println!(
+            "Testing range: {} to {} ({} observations)",
+            metrics.testing_start_date(),
+            metrics.testing_end_date(),
+            metrics.testing_length()
+        );
         println!();
-        println!("{outperformers_report}");
-
-        cumulative_return *= best_cumul_return;
-        num_tests += 1;
+        println!("Best portfolio weights:");
+        for (name, weight) in metrics.best_weights() {
+            println!("  - {name}: {:.2}%", weight * 100.0);
+        }
+        println!("Omega ratio: {:.3}Ω", metrics.omega_ratio());
+        println!(
+            "Return rate: {:.3}% (cum: {:.3}%)",
+            metrics.normalised_return(opts.days) * 100.0,
+            (metrics.cumulative_return() - 1.0) * 100.0
+        );
+        println!();
     }
-    // Report the seed for reproducibility
-    println!("Seed: {}", seed);
-
-    // And report the final cumulative return (windows don't overlap)
-    let final_annual_return_pct =
-        (cumulative_return.powf(252.0 / (num_tests * TEST_WINDOW_LENGTH) as f64) - 1.0) * 100.0;
-    println!("Average annual return: {:.3}%", final_annual_return_pct);
+    // Compute the cumulative return over all runs (assumes non-overlapping)
+    let total_return = runs.iter().fold(1.0, |acc, m| acc * m.cumulative_return());
+    let total_days = runs.iter().map(|m| m.testing_length()).sum::<usize>();
+    let total_periods = total_days as Float / opts.days as Float;
+    let annual_return = total_return.powf(opts.days as Float / total_days as Float) - 1.0;
+    println!("=== Summary ===");
+    println!();
+    println!(
+        "Assuming non-overlapping test periods, total cumulative return: {:.3}% ({:.1} years)",
+        (total_return - 1.0) * 100.0,
+        total_periods
+    );
+    println!("ANNUAL RETURN: {:.3}%", annual_return * 100.0);
 
     Ok(())
+}
+
+/// CLI for running portfolio optimisation experiments
+#[derive(Parser)]
+pub struct Cli {
+    /// Path to the CSV file containing asset data
+    csv_file: PathBuf,
+
+    /// The number of days in a year in your data (or periods per year)
+    #[arg(short = 'd', long = "days", default_value_t = NUM_TRADING_DAYS)]
+    days: usize,
+    /// A seed for reproducibility (default: randomly generated)
+    #[arg(long = "seed")]
+    seed: Option<u64>,
+    /// The strategy to use for the portfolio optimisation (one of: `full`,
+    /// `sliding:<training_len>:<testing_len>`,
+    /// `expanding:<initial_training_length>:<testing_length>:<increment_length>`,
+    /// `static:<training_fraction>`)
+    #[arg(short = 's', long = "strategy", default_value = "static:0.7")]
+    strategy: String,
+    /// The selector to use for the genetic algorithm (one of: `tournament:<size>`)
+    // TODO: More...(Boltzmann needs to impl Clone)
+    #[arg(long = "selector", default_value = "tournament:70")]
+    selector: String,
+    /// The annual risk-free rate to optimise against
+    #[arg(short = 'r', long = "risk-free-rate")]
+    risk_free_rate: Float,
+    /// The maximum "jitter" factor to apply in portflio mutation (higher for more exploration)
+    #[arg(short = 'j', long = "max-jitter", default_value_t = 0.25)]
+    max_jitter: Float,
+    /// The maximum number of generations to run the optimisation for
+    #[arg(short = 'g', long = "max-generations", default_value_t = DEFAULT_MAX_GENERATIONS)]
+    max_generations: usize,
+    /// The number of best-performing portfolios to carry over each generation
+    #[arg(short = 'e', long = "elites", default_value_t = DEFAULT_ELITES)]
+    elites: usize,
+    /// The size of the population to use for the optimisation
+    #[arg(short = 'p', long = "population-size", default_value_t = DEFAULT_POPULATION_SIZE)]
+    population_size: usize,
+    /// Threshold for the slope of the fitness plateau (in Ω) to stop the optimisation (lower to
+    /// "try harder")
+    #[arg(short = 't', long = "plateau-slope-threshold", default_value_t = DEFAULT_PLATEAU_SLOPE_THRESHOLD)]
+    plateau_slope_threshold: Float,
+    /// The number of generations to consider for the fitness plateau
+    #[arg(long = "plateau-window", default_value_t = DEFAULT_PLATEAU_WINDOW)]
+    plateau_window: usize,
+    /// The number of generations to wait before stopping the optimisation if the fitness plateaus
+    #[arg(long = "plateau-generations", default_value_t = DEFAULT_PLATEAU_GENERATIONS)]
+    plateau_generations: usize,
+}
+impl Cli {
+    /// Converts these CLI arguments into an [`Engine`] that can be run to optimise portfolios.
+    pub fn to_engine(
+        &self,
+    ) -> Result<Engine<impl for<'a> PairSelector<Portfolio<'a, 'a>> + Clone>, CliError> {
+        // Parse the CSV file into data
+        let data = Data::from_file(&self.csv_file)?;
+        let strategy =
+            Strategy::from_str(&self.strategy).map_err(|err| CliError::InvalidStrategy(err))?;
+        // Configure with all the parameters that don't change the type
+        let engine = EngineBuilder::new()
+            .with_data(data)
+            .with_strategy(strategy)
+            .with_risk_free_rate(self.risk_free_rate, self.days)
+            .with_max_jitter(self.max_jitter)
+            .with_max_generations(self.max_generations)
+            .with_elites(self.elites)
+            .with_population_size(self.population_size)
+            .with_halter(
+                self.plateau_window,
+                self.plateau_slope_threshold,
+                self.plateau_generations,
+            );
+        // And a seed if we have one
+        let engine = if let Some(seed) = self.seed {
+            engine.with_seed(seed)
+        } else {
+            engine
+        };
+
+        // Now branch on the selector
+        match self.selector.as_str() {
+            s if s.starts_with("tournament:") => {
+                let size = s
+                    .strip_prefix("tournament:")
+                    .and_then(|s| s.parse().ok())
+                    .ok_or_else(|| {
+                        CliError::InvalidSelector("tournament selector requires size")
+                    })?;
+                let engine = engine.with_selector(TournamentSelector::new(size));
+
+                Ok(engine.build().unwrap())
+            }
+            // "roulette" => {
+            //     let engine = engine.with_selector(RouletteSelector);
+            // },
+            _ => Err(CliError::InvalidSelector(
+                "expected `tournament:<size>` or `roulette`",
+            )),
+        }
+    }
 }
