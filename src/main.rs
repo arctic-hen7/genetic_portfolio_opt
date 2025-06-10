@@ -61,6 +61,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let annual_return = total_return.powf(opts.days as Float / total_days as Float) - 1.0;
     println!("=== Summary ===");
     println!();
+    println!("Seed: {}", runs[0].seed());
     println!(
         "Assuming non-overlapping test periods, total cumulative return: {:.3}% ({:.1} years)",
         (total_return - 1.0) * 100.0,
