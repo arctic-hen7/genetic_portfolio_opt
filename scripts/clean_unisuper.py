@@ -43,5 +43,5 @@ def clean_data(filename, drop_cols):
     result = pd.concat([dates, daily], axis=1)
     return result
 
-data = clean_data(sys.argv[1], ["Cash"])
+data = clean_data(sys.argv[1], ["Cash", "Conservative", "Conservative Balanced", "Balanced", "Sustainable Balanced", "Growth", "Sustainable High Growth", "High Growth"])
 data.to_csv(sys.argv[2], index=False)
