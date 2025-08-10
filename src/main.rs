@@ -1,6 +1,7 @@
 mod data;
 mod engine;
 mod errors;
+mod fitness;
 mod generator;
 mod params;
 mod parse_csv;
@@ -46,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         for (name, weight) in metrics.best_weights() {
             println!("  - {name}: {:.2}%", weight * 100.0);
         }
-        println!("Omega ratio: {:.3}Ω", metrics.omega_ratio());
+        println!("Fitness: {:.3}", metrics.fitness());
         println!(
             "Return rate: {:.3}% (cum: {:.3}%)",
             metrics.normalised_return(opts.days) * 100.0,

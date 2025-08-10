@@ -104,7 +104,7 @@ impl<S: for<'a> PairSelector<Portfolio<'a, 'a>> + Clone + Send + Sync> Engine<S>
             test_is_internal: is_internal_test,
             generations: solutions.num_generations(),
             seed: self.seed,
-            omega_ratio: *best_fitness,
+            fitness: *best_fitness,
             cumulative_return: best_cumul_return,
         })
     }
@@ -585,7 +585,7 @@ pub struct Metrics {
     generations: usize,
     seed: u64,
 
-    omega_ratio: Float,
+    fitness: Float,
     cumulative_return: Float,
     // sharpe_ratio: Float,
     // sortino_ratio: Float,
@@ -608,12 +608,9 @@ impl Metrics {
         self.cumulative_return
     }
 
-    /// Returns the omega ratio for the portfolio associated with this run, which is a measure of
-    /// the portfolio's performance relative to the risk-free rate. This is a ratio, so it will be
-    /// greater than 1.0 if the portfolio outperforms the risk-free rate, and less than 1.0 if it
-    /// underperforms it (on average).
-    pub fn omega_ratio(&self) -> Float {
-        self.omega_ratio
+    /// Returns the fitness we were optimising for.
+    pub fn fitness(&self) -> Float {
+        self.fitness
     }
 
     /// Returns the weights of the best portfolio found in this run, as a vector of (asset name,

@@ -1,4 +1,6 @@
-use crate::{data::DataHandle, generator::generate_portfolio, params::Parameters, Float};
+use crate::{
+    data::DataHandle, fitness::*, generator::generate_portfolio, params::Parameters, Float,
+};
 use genetic::{Individual, NullTracker};
 use libc::memcmp;
 use ordered_float::NotNan;
@@ -14,9 +16,9 @@ use std::{ffi::c_void, hash::Hash};
 #[derive(Debug)]
 pub struct Portfolio<'p, 'd> {
     // NOTE: Guaranteed by `PortfolioGenerator` to have the same length as the number of assets.
-    weights: Vec<Float>,
-    params: &'p Parameters,
-    data: DataHandle<'d>,
+    pub(crate) weights: Vec<Float>,
+    pub(crate) params: &'p Parameters,
+    pub(crate) data: DataHandle<'d>,
 }
 impl Clone for Portfolio<'_, '_> {
     fn clone(&self) -> Self {
@@ -140,92 +142,13 @@ impl<'p, 'd> Individual for Portfolio<'p, 'd> {
         NullTracker
     }
 
-    // Fitness is the omega ratio of the weighted portfolio of assets
     fn fitness(&self) -> Self::Fitness {
-        let weights = &self.weights;
-        let rfr = self.params.risk_free_rate();
-
-        // single pass: each thread accumulates its own (num, den)
-        let (numerator, denominator) = self
-            .data
-            .data()
-            .into_par_iter()
-            // PERF: This needs to be faster!
-            .fold(
-                || (0.0 as Float, 0.0 as Float),
-                |(mut numer, mut denom), row| {
-                    // 1. dot(row, weights)
-                    let len = weights.len();
-                    let mut sum = 0.0 as Float;
-
-                    // safe fallback for small or non-x86 targets:
-                    // for i in 0..len { sum += row[i] * weights[i]; }
-
-                    // unsafe pointer loop, zero bounds checks:
-                    unsafe {
-                        let rp = row.as_ptr();
-                        let wp = weights.as_ptr();
-                        for i in 0..len {
-                            sum += *rp.add(i) * *wp.add(i);
-                        }
-                    }
-
-                    // 2. Omega numerator/denominator increment
-                    let diff = sum - rfr;
-                    numer += diff.max(0.0);
-                    denom += (-diff).max(0.0);
-
-                    (numer, denom)
-                },
-            )
-            .reduce(
-                || (0.0 as Float, 0.0 as Float),
-                |(n1, d1), (n2, d2)| (n1 + n2, d1 + d2),
-            );
-
-        // let (numerator, denominator) = self
-        //     .data
-        //     .data()
-        //     // Now multiply each element of the row by the appropriate weight and sum them all
-        //     // together. This leaves us with an iterator of combined returns
-        //     .map(|row| {
-        //         row.iter()
-        //             .zip(self.weights.iter())
-        //             .map(|(r, weight)| r * weight)
-        //             .sum::<Float>()
-        //     })
-        //     // Now compute the numerator and denominator of the Omega ratio.
-        //     //   - Numerator = sum_t(max(0, weighted_r - theta))
-        //     //   - Denominator = sum_t(max(0, theta - weighted_r))
-        //     .fold(
-        //         || (0.0, 0.0),
-        //         |(numerator, denominator), weighted_r| {
-        //             let gain = weighted_r - self.params.risk_free_rate();
-        //             let loss = self.params.risk_free_rate() - weighted_r;
-        //
-        //             (numerator + gain.max(0.0), denominator + loss.max(0.0))
-        //         },
-        //     )
-        //     .reduce(
-        //         || (0.0, 0.0),
-        //         |(num1, den1), (num2, den2)| (num1 + num2, den1 + den2),
-        //     );
-
-        // Handle edge cases
-        let omega = if numerator == 0.0 && denominator == 0.0 {
-            panic!("assets have zero variation in returns");
-        } else if denominator == 0.0 {
-            Float::INFINITY
-        } else {
-            numerator / denominator
-        };
-
         // PERF: This could absolutely fail, and we wouldn't know how it had or where it had.
         // However, this is *significantly* more performant than using `NotNan` everywhere, those
         // checks show up as real time spent on a flamegraph. So, we just panic if we see a NaN,
         // and you would haev to debu instrument your way out of it, which isn't reproducible at
         // all, but it hasn't happened yet!
-        NotNan::new(omega).expect("NaN")
+        NotNan::new(omega_ratio(&self)).expect("NaN")
     }
 
     // Cross with a convex combination (avoids a separate normalisation step)
