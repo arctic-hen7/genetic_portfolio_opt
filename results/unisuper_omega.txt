@@ -1,0 +1,170 @@
+=== Run #1 ===
+Training range: 2012-04-23 to 2015-03-10 (756 observations)
+Testing range: 2015-03-11 to 2016-02-26 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 34.63%
+  - Listed Property: 15.83%
+  - Australian Shares: 0.65%
+  - International Shares: 22.30%
+  - Global Environmental Opportunities: 0.78%
+  - Australian Dividend Income: 23.74%
+  - Global Companies in Asia: 2.07%
+Fitness: 0.920
+Return rate: 0.746% (cum: 0.746%)
+
+=== Run #2 ===
+Training range: 2013-04-05 to 2016-02-26 (756 observations)
+Testing range: 2016-02-29 to 2017-02-13 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 3.82%
+  - Listed Property: 48.48%
+  - Australian Shares: 0.17%
+  - International Shares: 43.12%
+  - Global Environmental Opportunities: 0.92%
+  - Australian Dividend Income: 2.04%
+  - Global Companies in Asia: 1.45%
+Fitness: 1.136
+Return rate: 9.927% (cum: 9.927%)
+
+=== Run #3 ===
+Training range: 2014-03-24 to 2017-02-13 (756 observations)
+Testing range: 2017-02-14 to 2018-01-29 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 4.88%
+  - Listed Property: 51.57%
+  - Australian Shares: 0.49%
+  - International Shares: 33.33%
+  - Global Environmental Opportunities: 1.02%
+  - Australian Dividend Income: 7.00%
+  - Global Companies in Asia: 1.70%
+Fitness: 1.136
+Return rate: 8.842% (cum: 8.842%)
+
+=== Run #4 ===
+Training range: 2015-03-11 to 2018-01-29 (756 observations)
+Testing range: 2018-01-30 to 2019-01-11 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 0.21%
+  - Listed Property: 0.45%
+  - Australian Shares: 3.87%
+  - International Shares: 74.28%
+  - Global Environmental Opportunities: 12.53%
+  - Australian Dividend Income: 3.92%
+  - Global Companies in Asia: 4.75%
+Fitness: 0.878
+Return rate: -3.736% (cum: -3.736%)
+
+=== Run #5 ===
+Training range: 2016-02-29 to 2019-01-11 (756 observations)
+Testing range: 2019-01-14 to 2019-12-27 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 1.29%
+  - Listed Property: 0.86%
+  - Australian Shares: 30.40%
+  - International Shares: 0.44%
+  - Global Environmental Opportunities: 2.70%
+  - Australian Dividend Income: 1.66%
+  - Global Companies in Asia: 62.65%
+Fitness: 1.579
+Return rate: 27.208% (cum: 27.208%)
+
+=== Run #6 ===
+Training range: 2017-02-14 to 2019-12-27 (756 observations)
+Testing range: 2019-12-30 to 2020-12-15 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 0.77%
+  - Listed Property: 0.65%
+  - Australian Shares: 25.52%
+  - International Shares: 0.08%
+  - Global Environmental Opportunities: 2.38%
+  - Australian Dividend Income: 1.30%
+  - Global Companies in Asia: 69.31%
+Fitness: 1.063
+Return rate: 8.667% (cum: 8.667%)
+
+=== Run #7 ===
+Training range: 2018-01-30 to 2020-12-15 (756 observations)
+Testing range: 2020-12-16 to 2021-12-02 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 54.50%
+  - Listed Property: 0.87%
+  - Australian Shares: 2.65%
+  - International Shares: 2.06%
+  - Global Environmental Opportunities: 39.50%
+  - Australian Dividend Income: 0.40%
+  - Global Companies in Asia: 0.02%
+Fitness: 1.066
+Return rate: 7.014% (cum: 7.014%)
+
+=== Run #8 ===
+Training range: 2019-01-14 to 2021-12-02 (756 observations)
+Testing range: 2021-12-03 to 2022-11-21 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 1.22%
+  - Listed Property: 0.66%
+  - Australian Shares: 21.49%
+  - International Shares: 3.32%
+  - Global Environmental Opportunities: 43.86%
+  - Australian Dividend Income: 1.82%
+  - Global Companies in Asia: 27.64%
+Fitness: 0.885
+Return rate: -7.759% (cum: -7.759%)
+
+=== Run #9 ===
+Training range: 2019-12-30 to 2022-11-21 (756 observations)
+Testing range: 2022-11-22 to 2023-11-06 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 0.19%
+  - Listed Property: 0.24%
+  - Australian Shares: 31.92%
+  - International Shares: 2.42%
+  - Global Environmental Opportunities: 53.98%
+  - Australian Dividend Income: 6.10%
+  - Global Companies in Asia: 5.14%
+Fitness: 0.842
+Return rate: -6.290% (cum: -6.290%)
+
+=== Run #10 ===
+Training range: 2020-12-16 to 2023-11-06 (756 observations)
+Testing range: 2023-11-07 to 2024-10-18 (252 observations)
+
+Best portfolio weights:
+  - Australian Bond: 0.69%
+  - Listed Property: 2.23%
+  - Australian Shares: 19.60%
+  - International Shares: 0.79%
+  - Global Environmental Opportunities: 0.68%
+  - Australian Dividend Income: 43.24%
+  - Global Companies in Asia: 32.78%
+Fitness: 1.474
+Return rate: 22.916% (cum: 22.916%)
+
+=== Run #11 ===
+Training range: 2021-12-03 to 2024-10-18 (756 observations)
+Testing range: 2024-10-21 to 2025-05-15 (149 observations)
+
+Best portfolio weights:
+  - Australian Bond: 1.18%
+  - Listed Property: 0.26%
+  - Australian Shares: 55.58%
+  - International Shares: 2.19%
+  - Global Environmental Opportunities: 0.63%
+  - Australian Dividend Income: 14.05%
+  - Global Companies in Asia: 26.10%
+Fitness: 1.019
+Return rate: 5.090% (cum: 2.979%)
+
+=== Summary ===
+
+Seed: 12801266797383427658
+Assuming non-overlapping test periods, total cumulative return: 87.807% (10.6 years)
+ANNUAL RETURN: 6.131%

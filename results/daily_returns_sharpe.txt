@@ -1,0 +1,701 @@
+=== Run #1 ===
+Training range: 2010-06-30 to 2013-07-01 (756 observations)
+Testing range: 2013-07-02 to 2014-07-01 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 0.59%
+  - ABT: 2.27%
+  - AGG: 3.84%
+  - AMZN: 1.83%
+  - BAC: 0.50%
+  - BRK-B: 0.75%
+  - CRM: 0.87%
+  - CVX: 0.81%
+  - DIA: 0.31%
+  - DIS: 0.61%
+  - EEM: 1.73%
+  - EFA: 2.50%
+  - GLD: 1.08%
+  - GOOG: 1.23%
+  - HD: 8.45%
+  - HYG: 0.64%
+  - INTC: 0.43%
+  - IWM: 2.05%
+  - JNJ: 2.32%
+  - JPM: 0.59%
+  - KO: 2.61%
+  - LQD: 0.81%
+  - MA: 1.94%
+  - MSFT: 1.90%
+  - NFLX: 4.18%
+  - NKE: 1.99%
+  - NVDA: 0.74%
+  - ORCL: 0.34%
+  - PFE: 5.22%
+  - PG: 1.48%
+  - QQQ: 0.68%
+  - SPY: 1.54%
+  - TLT: 4.04%
+  - TSLA: 8.47%
+  - TSM: 1.35%
+  - UNH: 6.95%
+  - USO: 0.64%
+  - V: 1.58%
+  - VWO: 0.77%
+  - VZ: 2.68%
+  - WMT: 2.63%
+  - XLB: 1.10%
+  - XLE: 1.58%
+  - XLF: 2.53%
+  - XLI: 0.94%
+  - XLK: 0.65%
+  - XLU: 0.69%
+  - XLV: 1.43%
+  - XLY: 2.23%
+  - XOM: 2.92%
+Fitness: 0.124
+Return rate: 29.140% (cum: 29.140%)
+
+=== Run #2 ===
+Training range: 2011-06-29 to 2014-07-01 (756 observations)
+Testing range: 2014-07-02 to 2015-07-01 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 2.83%
+  - ABT: 1.72%
+  - AGG: 3.36%
+  - AMZN: 1.58%
+  - BAC: 0.34%
+  - BRK-B: 0.34%
+  - CRM: 0.44%
+  - CVX: 0.45%
+  - DIA: 2.48%
+  - DIS: 3.04%
+  - EEM: 0.50%
+  - EFA: 0.46%
+  - GLD: 0.72%
+  - GOOG: 3.41%
+  - HD: 1.49%
+  - HYG: 2.51%
+  - INTC: 0.19%
+  - IWM: 1.59%
+  - JNJ: 1.91%
+  - JPM: 3.25%
+  - KO: 1.27%
+  - LQD: 0.86%
+  - MA: 6.56%
+  - MSFT: 3.68%
+  - NFLX: 1.06%
+  - NKE: 1.46%
+  - NVDA: 0.90%
+  - ORCL: 1.18%
+  - PFE: 0.10%
+  - PG: 2.20%
+  - QQQ: 1.55%
+  - SPY: 0.97%
+  - TLT: 2.40%
+  - TSLA: 14.88%
+  - TSM: 2.82%
+  - UNH: 2.04%
+  - USO: 0.60%
+  - V: 3.33%
+  - VWO: 0.44%
+  - VZ: 1.75%
+  - WMT: 2.04%
+  - XLB: 1.45%
+  - XLE: 3.41%
+  - XLF: 0.14%
+  - XLI: 1.40%
+  - XLK: 1.68%
+  - XLU: 3.84%
+  - XLV: 0.86%
+  - XLY: 0.32%
+  - XOM: 2.21%
+Fitness: 0.035
+Return rate: 11.199% (cum: 11.199%)
+
+=== Run #3 ===
+Training range: 2012-06-28 to 2015-07-01 (756 observations)
+Testing range: 2015-07-02 to 2016-06-30 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 1.34%
+  - ABT: 0.69%
+  - AGG: 1.18%
+  - AMZN: 1.39%
+  - BAC: 4.97%
+  - BRK-B: 1.50%
+  - CRM: 1.88%
+  - CVX: 0.51%
+  - DIA: 2.15%
+  - DIS: 1.73%
+  - EEM: 0.81%
+  - EFA: 1.08%
+  - GLD: 1.61%
+  - GOOG: 1.72%
+  - HD: 3.49%
+  - HYG: 1.04%
+  - INTC: 0.57%
+  - IWM: 1.25%
+  - JNJ: 1.44%
+  - JPM: 1.72%
+  - KO: 1.06%
+  - LQD: 5.00%
+  - MA: 1.20%
+  - MSFT: 0.68%
+  - NFLX: 12.53%
+  - NKE: 4.40%
+  - NVDA: 2.28%
+  - ORCL: 0.65%
+  - PFE: 0.68%
+  - PG: 4.93%
+  - QQQ: 0.87%
+  - SPY: 0.56%
+  - TLT: 0.81%
+  - TSLA: 6.04%
+  - TSM: 1.82%
+  - UNH: 6.78%
+  - USO: 0.48%
+  - V: 3.49%
+  - VWO: 1.12%
+  - VZ: 1.58%
+  - WMT: 1.10%
+  - XLB: 0.84%
+  - XLE: 2.34%
+  - XLF: 0.95%
+  - XLI: 0.38%
+  - XLK: 0.52%
+  - XLU: 1.43%
+  - XLV: 1.47%
+  - XLY: 1.26%
+  - XOM: 0.68%
+Fitness: 0.015
+Return rate: 7.337% (cum: 7.337%)
+
+=== Run #4 ===
+Training range: 2013-07-02 to 2016-06-30 (756 observations)
+Testing range: 2016-07-01 to 2017-06-30 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 0.95%
+  - ABT: 0.78%
+  - AGG: 1.54%
+  - AMZN: 5.24%
+  - BAC: 1.46%
+  - BRK-B: 0.23%
+  - CRM: 1.67%
+  - CVX: 0.12%
+  - DIA: 0.43%
+  - DIS: 1.38%
+  - EEM: 0.86%
+  - EFA: 0.95%
+  - GLD: 5.38%
+  - GOOG: 4.51%
+  - HD: 0.96%
+  - HYG: 1.01%
+  - INTC: 0.32%
+  - IWM: 2.59%
+  - JNJ: 0.39%
+  - JPM: 1.40%
+  - KO: 0.08%
+  - LQD: 3.92%
+  - MA: 0.53%
+  - MSFT: 0.41%
+  - NFLX: 3.04%
+  - NKE: 2.04%
+  - NVDA: 14.88%
+  - ORCL: 0.49%
+  - PFE: 5.70%
+  - PG: 3.41%
+  - QQQ: 0.96%
+  - SPY: 0.23%
+  - TLT: 1.57%
+  - TSLA: 1.67%
+  - TSM: 0.36%
+  - UNH: 8.42%
+  - USO: 0.13%
+  - V: 0.71%
+  - VWO: 0.14%
+  - VZ: 3.51%
+  - WMT: 5.26%
+  - XLB: 0.30%
+  - XLE: 1.14%
+  - XLF: 0.70%
+  - XLI: 1.97%
+  - XLK: 1.12%
+  - XLU: 0.13%
+  - XLV: 2.86%
+  - XLY: 2.03%
+  - XOM: 0.11%
+Fitness: 0.167
+Return rate: 38.556% (cum: 38.556%)
+
+=== Run #5 ===
+Training range: 2014-07-02 to 2017-06-30 (756 observations)
+Testing range: 2017-07-03 to 2018-07-02 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 0.95%
+  - ABT: 0.78%
+  - AGG: 1.54%
+  - AMZN: 5.24%
+  - BAC: 1.46%
+  - BRK-B: 0.23%
+  - CRM: 1.67%
+  - CVX: 0.12%
+  - DIA: 0.43%
+  - DIS: 1.38%
+  - EEM: 0.86%
+  - EFA: 0.95%
+  - GLD: 5.38%
+  - GOOG: 4.51%
+  - HD: 0.96%
+  - HYG: 1.01%
+  - INTC: 0.32%
+  - IWM: 2.59%
+  - JNJ: 0.39%
+  - JPM: 1.40%
+  - KO: 0.08%
+  - LQD: 3.92%
+  - MA: 0.53%
+  - MSFT: 0.41%
+  - NFLX: 3.04%
+  - NKE: 2.04%
+  - NVDA: 14.88%
+  - ORCL: 0.49%
+  - PFE: 5.70%
+  - PG: 3.41%
+  - QQQ: 0.96%
+  - SPY: 0.23%
+  - TLT: 1.57%
+  - TSLA: 1.67%
+  - TSM: 0.36%
+  - UNH: 8.42%
+  - USO: 0.13%
+  - V: 0.71%
+  - VWO: 0.14%
+  - VZ: 3.51%
+  - WMT: 5.26%
+  - XLB: 0.30%
+  - XLE: 1.14%
+  - XLF: 0.70%
+  - XLI: 1.97%
+  - XLK: 1.12%
+  - XLU: 0.13%
+  - XLV: 2.86%
+  - XLY: 2.03%
+  - XOM: 0.11%
+Fitness: 0.105
+Return rate: 29.877% (cum: 29.877%)
+
+=== Run #6 ===
+Training range: 2015-07-02 to 2018-07-02 (756 observations)
+Testing range: 2018-07-03 to 2019-07-03 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 0.38%
+  - ABT: 0.18%
+  - AGG: 0.93%
+  - AMZN: 11.25%
+  - BAC: 0.03%
+  - BRK-B: 0.62%
+  - CRM: 0.58%
+  - CVX: 2.84%
+  - DIA: 0.27%
+  - DIS: 1.99%
+  - EEM: 2.71%
+  - EFA: 1.37%
+  - GLD: 0.60%
+  - GOOG: 0.91%
+  - HD: 3.00%
+  - HYG: 1.13%
+  - INTC: 0.45%
+  - IWM: 0.65%
+  - JNJ: 1.58%
+  - JPM: 0.43%
+  - KO: 1.99%
+  - LQD: 3.54%
+  - MA: 0.40%
+  - MSFT: 1.02%
+  - NFLX: 2.64%
+  - NKE: 0.16%
+  - NVDA: 18.73%
+  - ORCL: 1.11%
+  - PFE: 1.26%
+  - PG: 3.94%
+  - QQQ: 0.93%
+  - SPY: 1.54%
+  - TLT: 3.92%
+  - TSLA: 1.17%
+  - TSM: 0.79%
+  - UNH: 0.11%
+  - USO: 0.66%
+  - V: 0.23%
+  - VWO: 1.64%
+  - VZ: 3.34%
+  - WMT: 2.63%
+  - XLB: 2.51%
+  - XLE: 5.34%
+  - XLF: 0.66%
+  - XLI: 1.78%
+  - XLK: 0.35%
+  - XLU: 0.59%
+  - XLV: 0.19%
+  - XLY: 0.97%
+  - XOM: 3.96%
+Fitness: 0.006
+Return rate: 4.329% (cum: 4.329%)
+
+=== Run #7 ===
+Training range: 2016-07-01 to 2019-07-03 (756 observations)
+Testing range: 2019-07-05 to 2020-07-02 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 1.48%
+  - ABT: 7.24%
+  - AGG: 2.10%
+  - AMZN: 3.45%
+  - BAC: 2.85%
+  - BRK-B: 1.33%
+  - CRM: 0.27%
+  - CVX: 2.29%
+  - DIA: 0.30%
+  - DIS: 3.62%
+  - EEM: 0.43%
+  - EFA: 1.48%
+  - GLD: 0.18%
+  - GOOG: 2.80%
+  - HD: 1.20%
+  - HYG: 0.83%
+  - INTC: 1.40%
+  - IWM: 0.39%
+  - JNJ: 7.52%
+  - JPM: 0.60%
+  - KO: 0.16%
+  - LQD: 2.36%
+  - MA: 13.47%
+  - MSFT: 3.59%
+  - NFLX: 5.29%
+  - NKE: 0.32%
+  - NVDA: 5.51%
+  - ORCL: 1.39%
+  - PFE: 2.72%
+  - PG: 1.12%
+  - QQQ: 0.20%
+  - SPY: 0.17%
+  - TLT: 7.21%
+  - TSLA: 0.12%
+  - TSM: 0.06%
+  - UNH: 1.94%
+  - USO: 3.46%
+  - V: 0.55%
+  - VWO: 1.91%
+  - VZ: 0.02%
+  - WMT: 0.68%
+  - XLB: 0.24%
+  - XLE: 1.56%
+  - XLF: 0.57%
+  - XLI: 0.80%
+  - XLK: 0.42%
+  - XLU: 0.70%
+  - XLV: 0.45%
+  - XLY: 0.34%
+  - XOM: 0.94%
+Fitness: 0.026
+Return rate: 12.945% (cum: 12.945%)
+
+=== Run #8 ===
+Training range: 2017-07-03 to 2020-07-02 (756 observations)
+Testing range: 2020-07-06 to 2021-07-02 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 2.36%
+  - ABT: 4.20%
+  - AGG: 2.22%
+  - AMZN: 4.66%
+  - BAC: 0.64%
+  - BRK-B: 0.84%
+  - CRM: 1.08%
+  - CVX: 1.10%
+  - DIA: 0.79%
+  - DIS: 1.42%
+  - EEM: 1.27%
+  - EFA: 1.31%
+  - GLD: 1.62%
+  - GOOG: 0.63%
+  - HD: 2.69%
+  - HYG: 0.76%
+  - INTC: 0.67%
+  - IWM: 1.49%
+  - JNJ: 2.23%
+  - JPM: 0.60%
+  - KO: 1.26%
+  - LQD: 3.28%
+  - MA: 1.81%
+  - MSFT: 5.94%
+  - NFLX: 5.76%
+  - NKE: 2.92%
+  - NVDA: 1.11%
+  - ORCL: 0.93%
+  - PFE: 0.77%
+  - PG: 1.55%
+  - QQQ: 3.66%
+  - SPY: 1.54%
+  - TLT: 2.14%
+  - TSLA: 10.22%
+  - TSM: 1.60%
+  - UNH: 1.34%
+  - USO: 0.35%
+  - V: 2.45%
+  - VWO: 1.73%
+  - VZ: 2.52%
+  - WMT: 1.45%
+  - XLB: 1.05%
+  - XLE: 0.89%
+  - XLF: 0.64%
+  - XLI: 1.39%
+  - XLK: 3.26%
+  - XLU: 1.39%
+  - XLV: 0.87%
+  - XLY: 2.64%
+  - XOM: 0.96%
+Fitness: 0.130
+Return rate: 47.517% (cum: 47.517%)
+
+=== Run #9 ===
+Training range: 2018-07-03 to 2021-07-02 (756 observations)
+Testing range: 2021-07-06 to 2022-07-05 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 2.97%
+  - ABT: 0.78%
+  - AGG: 6.27%
+  - AMZN: 0.57%
+  - BAC: 0.85%
+  - BRK-B: 3.61%
+  - CRM: 1.73%
+  - CVX: 0.57%
+  - DIA: 0.62%
+  - DIS: 0.43%
+  - EEM: 0.48%
+  - EFA: 1.05%
+  - GLD: 3.27%
+  - GOOG: 1.54%
+  - HD: 1.14%
+  - HYG: 0.76%
+  - INTC: 1.48%
+  - IWM: 1.02%
+  - JNJ: 6.04%
+  - JPM: 1.08%
+  - KO: 1.56%
+  - LQD: 0.94%
+  - MA: 1.45%
+  - MSFT: 2.03%
+  - NFLX: 0.76%
+  - NKE: 2.86%
+  - NVDA: 2.98%
+  - ORCL: 2.07%
+  - PFE: 1.38%
+  - PG: 1.84%
+  - QQQ: 1.84%
+  - SPY: 0.96%
+  - TLT: 2.51%
+  - TSLA: 13.27%
+  - TSM: 6.66%
+  - UNH: 2.84%
+  - USO: 0.51%
+  - V: 0.65%
+  - VWO: 1.60%
+  - VZ: 1.01%
+  - WMT: 1.77%
+  - XLB: 0.95%
+  - XLE: 1.31%
+  - XLF: 0.95%
+  - XLI: 0.73%
+  - XLK: 1.48%
+  - XLU: 1.47%
+  - XLV: 1.21%
+  - XLY: 1.81%
+  - XOM: 2.35%
+Fitness: -0.025
+Return rate: -5.166% (cum: -5.166%)
+
+=== Run #10 ===
+Training range: 2019-07-05 to 2022-07-05 (756 observations)
+Testing range: 2022-07-06 to 2023-07-06 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 1.65%
+  - ABT: 1.40%
+  - AGG: 0.30%
+  - AMZN: 0.81%
+  - BAC: 0.40%
+  - BRK-B: 2.40%
+  - CRM: 3.34%
+  - CVX: 3.09%
+  - DIA: 0.41%
+  - DIS: 0.72%
+  - EEM: 3.41%
+  - EFA: 0.04%
+  - GLD: 2.07%
+  - GOOG: 0.67%
+  - HD: 0.87%
+  - HYG: 3.80%
+  - INTC: 0.20%
+  - IWM: 0.46%
+  - JNJ: 0.94%
+  - JPM: 1.55%
+  - KO: 1.98%
+  - LQD: 2.50%
+  - MA: 1.48%
+  - MSFT: 1.15%
+  - NFLX: 0.02%
+  - NKE: 0.38%
+  - NVDA: 0.93%
+  - ORCL: 0.12%
+  - PFE: 0.04%
+  - PG: 0.86%
+  - QQQ: 1.96%
+  - SPY: 1.46%
+  - TLT: 0.54%
+  - TSLA: 22.54%
+  - TSM: 0.87%
+  - UNH: 4.88%
+  - USO: 3.83%
+  - V: 0.15%
+  - VWO: 1.10%
+  - VZ: 2.60%
+  - WMT: 1.59%
+  - XLB: 3.04%
+  - XLE: 1.41%
+  - XLF: 1.21%
+  - XLI: 2.22%
+  - XLK: 0.81%
+  - XLU: 4.01%
+  - XLV: 1.11%
+  - XLY: 0.55%
+  - XOM: 6.16%
+Fitness: 0.038
+Return rate: 16.625% (cum: 16.625%)
+
+=== Run #11 ===
+Training range: 2020-07-06 to 2023-07-06 (756 observations)
+Testing range: 2023-07-07 to 2024-07-08 (252 observations)
+
+Best portfolio weights:
+  - AAPL: 1.78%
+  - ABT: 2.10%
+  - AGG: 1.29%
+  - AMZN: 0.22%
+  - BAC: 1.59%
+  - BRK-B: 1.49%
+  - CRM: 0.76%
+  - CVX: 8.05%
+  - DIA: 0.15%
+  - DIS: 0.30%
+  - EEM: 0.18%
+  - EFA: 1.29%
+  - GLD: 2.62%
+  - GOOG: 1.48%
+  - HD: 2.86%
+  - HYG: 0.88%
+  - INTC: 0.58%
+  - IWM: 0.72%
+  - JNJ: 0.73%
+  - JPM: 0.14%
+  - KO: 4.25%
+  - LQD: 0.82%
+  - MA: 0.14%
+  - MSFT: 1.06%
+  - NFLX: 0.40%
+  - NKE: 0.76%
+  - NVDA: 5.79%
+  - ORCL: 2.10%
+  - PFE: 1.06%
+  - PG: 0.50%
+  - QQQ: 2.51%
+  - SPY: 3.36%
+  - TLT: 0.73%
+  - TSLA: 5.08%
+  - TSM: 2.08%
+  - UNH: 0.32%
+  - USO: 0.39%
+  - V: 0.79%
+  - VWO: 1.64%
+  - VZ: 0.32%
+  - WMT: 1.85%
+  - XLB: 3.92%
+  - XLE: 8.35%
+  - XLF: 1.98%
+  - XLI: 6.93%
+  - XLK: 1.18%
+  - XLU: 1.73%
+  - XLV: 4.32%
+  - XLY: 0.55%
+  - XOM: 5.89%
+Fitness: 0.113
+Return rate: 24.923% (cum: 24.923%)
+
+=== Run #12 ===
+Training range: 2021-07-06 to 2024-07-08 (756 observations)
+Testing range: 2024-07-09 to 2025-06-06 (230 observations)
+
+Best portfolio weights:
+  - AAPL: 1.39%
+  - ABT: 1.97%
+  - AGG: 0.87%
+  - AMZN: 1.12%
+  - BAC: 2.62%
+  - BRK-B: 0.66%
+  - CRM: 0.08%
+  - CVX: 1.13%
+  - DIA: 0.62%
+  - DIS: 0.29%
+  - EEM: 3.27%
+  - EFA: 3.46%
+  - GLD: 1.07%
+  - GOOG: 2.40%
+  - HD: 1.17%
+  - HYG: 2.07%
+  - INTC: 0.53%
+  - IWM: 0.73%
+  - JNJ: 1.60%
+  - JPM: 2.42%
+  - KO: 0.84%
+  - LQD: 0.17%
+  - MA: 1.44%
+  - MSFT: 0.22%
+  - NFLX: 0.83%
+  - NKE: 0.56%
+  - NVDA: 18.17%
+  - ORCL: 2.61%
+  - PFE: 0.57%
+  - PG: 7.07%
+  - QQQ: 1.35%
+  - SPY: 0.57%
+  - TLT: 0.27%
+  - TSLA: 2.84%
+  - TSM: 2.20%
+  - UNH: 3.18%
+  - USO: 1.33%
+  - V: 1.38%
+  - VWO: 2.78%
+  - VZ: 1.05%
+  - WMT: 1.83%
+  - XLB: 2.15%
+  - XLE: 2.17%
+  - XLF: 2.77%
+  - XLI: 2.14%
+  - XLK: 2.18%
+  - XLU: 1.98%
+  - XLV: 3.93%
+  - XLY: 1.20%
+  - XOM: 0.73%
+Fitness: 0.033
+Return rate: 14.246% (cum: 12.925%)
+
+=== Summary ===
+
+Seed: 6113122129649218992
+Assuming non-overlapping test periods, total cumulative return: 652.270% (11.9 years)
+ANNUAL RETURN: 18.459%

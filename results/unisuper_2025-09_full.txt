@@ -1,0 +1,317 @@
+=== Run #1 ===
+Training range: 2014-09-01 to 2016-09-25 (756 observations)
+Testing range: 2016-09-26 to 2017-06-04 (252 observations)
+
+Best portfolio weights:
+  - Cash: 0.32%
+  - Conservative: 0.74%
+  - Conservative Balanced: 1.23%
+  - Balanced: 8.01%
+  - Sustainable Balanced: 0.05%
+  - Growth: 3.15%
+  - Sustainable High Growth: 6.87%
+  - High Growth: 2.15%
+  - Australian Bond: 9.88%
+  - Listed Property: 58.31%
+  - Australian Shares: 0.47%
+  - International Shares: 1.51%
+  - Global Environmental Opportunities: 2.66%
+  - Australian Dividend Income: 1.86%
+  - Global Companies in Asia: 2.72%
+  - Australian Income: 0.06%
+Fitness: 0.988
+Return rate: 4.024% (cum: 4.024%)
+
+=== Run #2 ===
+Training range: 2015-05-11 to 2017-06-04 (756 observations)
+Testing range: 2017-06-05 to 2018-02-11 (252 observations)
+
+Best portfolio weights:
+  - Cash: 0.73%
+  - Conservative: 0.69%
+  - Conservative Balanced: 8.68%
+  - Balanced: 6.45%
+  - Sustainable Balanced: 0.52%
+  - Growth: 5.03%
+  - Sustainable High Growth: 1.32%
+  - High Growth: 1.68%
+  - Australian Bond: 1.63%
+  - Listed Property: 1.09%
+  - Australian Shares: 0.51%
+  - International Shares: 19.44%
+  - Global Environmental Opportunities: 5.87%
+  - Australian Dividend Income: 10.97%
+  - Global Companies in Asia: 34.90%
+  - Australian Income: 0.47%
+Fitness: 0.984
+Return rate: 3.940% (cum: 3.940%)
+
+=== Run #3 ===
+Training range: 2016-01-18 to 2018-02-11 (756 observations)
+Testing range: 2018-02-12 to 2018-10-21 (252 observations)
+
+Best portfolio weights:
+  - Cash: 0.62%
+  - Conservative: 1.18%
+  - Conservative Balanced: 6.77%
+  - Balanced: 1.88%
+  - Sustainable Balanced: 1.87%
+  - Growth: 8.85%
+  - Sustainable High Growth: 1.08%
+  - High Growth: 19.14%
+  - Australian Bond: 1.92%
+  - Listed Property: 1.55%
+  - Australian Shares: 6.23%
+  - International Shares: 8.67%
+  - Global Environmental Opportunities: 32.84%
+  - Australian Dividend Income: 1.26%
+  - Global Companies in Asia: 5.46%
+  - Australian Income: 0.69%
+Fitness: 1.008
+Return rate: 4.562% (cum: 4.562%)
+
+=== Run #4 ===
+Training range: 2016-09-26 to 2018-10-21 (756 observations)
+Testing range: 2018-10-22 to 2019-06-30 (252 observations)
+
+Best portfolio weights:
+  - Cash: 2.68%
+  - Conservative: 0.27%
+  - Conservative Balanced: 2.52%
+  - Balanced: 4.71%
+  - Sustainable Balanced: 2.12%
+  - Growth: 1.28%
+  - Sustainable High Growth: 8.48%
+  - High Growth: 13.34%
+  - Australian Bond: 2.82%
+  - Listed Property: 0.28%
+  - Australian Shares: 2.82%
+  - International Shares: 0.27%
+  - Global Environmental Opportunities: 3.28%
+  - Australian Dividend Income: 2.27%
+  - Global Companies in Asia: 51.57%
+  - Australian Income: 1.27%
+Fitness: 1.217
+Return rate: 11.535% (cum: 11.535%)
+
+=== Run #5 ===
+Training range: 2017-06-05 to 2019-06-30 (756 observations)
+Testing range: 2019-07-01 to 2020-03-08 (252 observations)
+
+Best portfolio weights:
+  - Cash: 1.27%
+  - Conservative: 3.78%
+  - Conservative Balanced: 2.81%
+  - Balanced: 2.61%
+  - Sustainable Balanced: 2.84%
+  - Growth: 1.96%
+  - Sustainable High Growth: 4.47%
+  - High Growth: 3.94%
+  - Australian Bond: 4.31%
+  - Listed Property: 6.55%
+  - Australian Shares: 25.77%
+  - International Shares: 3.36%
+  - Global Environmental Opportunities: 1.40%
+  - Australian Dividend Income: 4.48%
+  - Global Companies in Asia: 28.81%
+  - Australian Income: 1.65%
+Fitness: 0.945
+Return rate: 2.359% (cum: 2.359%)
+
+=== Run #6 ===
+Training range: 2018-02-12 to 2020-03-08 (756 observations)
+Testing range: 2020-03-09 to 2021-02-17 (252 observations)
+
+Best portfolio weights:
+  - Cash: 0.69%
+  - Conservative: 0.92%
+  - Conservative Balanced: 2.05%
+  - Balanced: 6.75%
+  - Sustainable Balanced: 1.42%
+  - Growth: 2.78%
+  - Sustainable High Growth: 5.75%
+  - High Growth: 1.90%
+  - Australian Bond: 8.28%
+  - Listed Property: 51.48%
+  - Australian Shares: 1.00%
+  - International Shares: 3.16%
+  - Global Environmental Opportunities: 3.86%
+  - Australian Dividend Income: 1.98%
+  - Global Companies in Asia: 7.86%
+  - Australian Income: 0.12%
+Fitness: 0.993
+Return rate: 1.794% (cum: 1.794%)
+
+=== Run #7 ===
+Training range: 2018-10-22 to 2021-02-17 (756 observations)
+Testing range: 2021-02-18 to 2022-02-04 (252 observations)
+
+Best portfolio weights:
+  - Cash: 0.32%
+  - Conservative: 0.29%
+  - Conservative Balanced: 9.21%
+  - Balanced: 0.92%
+  - Sustainable Balanced: 1.92%
+  - Growth: 0.62%
+  - Sustainable High Growth: 3.76%
+  - High Growth: 4.14%
+  - Australian Bond: 11.43%
+  - Listed Property: 4.28%
+  - Australian Shares: 4.74%
+  - International Shares: 0.07%
+  - Global Environmental Opportunities: 54.33%
+  - Australian Dividend Income: 0.62%
+  - Global Companies in Asia: 0.05%
+  - Australian Income: 3.30%
+Fitness: 0.921
+Return rate: -1.185% (cum: -1.185%)
+
+=== Run #8 ===
+Training range: 2019-07-01 to 2022-02-04 (756 observations)
+Testing range: 2022-02-07 to 2022-10-22 (252 observations)
+
+Best portfolio weights:
+  - Cash: 2.92%
+  - Conservative: 2.45%
+  - Conservative Balanced: 5.12%
+  - Balanced: 1.28%
+  - Sustainable Balanced: 3.12%
+  - Growth: 1.31%
+  - Sustainable High Growth: 1.46%
+  - High Growth: 6.10%
+  - Australian Bond: 1.72%
+  - Listed Property: 1.71%
+  - Australian Shares: 3.49%
+  - International Shares: 3.28%
+  - Global Environmental Opportunities: 44.99%
+  - Australian Dividend Income: 1.41%
+  - Global Companies in Asia: 18.43%
+  - Australian Income: 1.22%
+Fitness: 0.855
+Return rate: -6.946% (cum: -6.946%)
+
+=== Run #9 ===
+Training range: 2020-03-09 to 2022-10-22 (756 observations)
+Testing range: 2022-10-23 to 2023-07-01 (252 observations)
+
+Best portfolio weights:
+  - Cash: 2.88%
+  - Conservative: 1.73%
+  - Conservative Balanced: 6.83%
+  - Balanced: 1.62%
+  - Sustainable Balanced: 3.87%
+  - Growth: 1.74%
+  - Sustainable High Growth: 3.56%
+  - High Growth: 4.46%
+  - Australian Bond: 2.07%
+  - Listed Property: 1.42%
+  - Australian Shares: 27.79%
+  - International Shares: 2.03%
+  - Global Environmental Opportunities: 29.80%
+  - Australian Dividend Income: 2.46%
+  - Global Companies in Asia: 6.01%
+  - Australian Income: 1.73%
+Fitness: 1.135
+Return rate: 8.852% (cum: 8.852%)
+
+=== Run #10 ===
+Training range: 2021-02-18 to 2023-07-01 (756 observations)
+Testing range: 2023-07-02 to 2024-03-09 (252 observations)
+
+Best portfolio weights:
+  - Cash: 0.51%
+  - Conservative: 4.01%
+  - Conservative Balanced: 5.26%
+  - Balanced: 2.21%
+  - Sustainable Balanced: 1.90%
+  - Growth: 0.08%
+  - Sustainable High Growth: 2.22%
+  - High Growth: 3.24%
+  - Australian Bond: 0.04%
+  - Listed Property: 10.77%
+  - Australian Shares: 15.02%
+  - International Shares: 0.90%
+  - Global Environmental Opportunities: 0.23%
+  - Australian Dividend Income: 41.26%
+  - Global Companies in Asia: 11.24%
+  - Australian Income: 1.11%
+Fitness: 1.193
+Return rate: 10.121% (cum: 10.121%)
+
+=== Run #11 ===
+Training range: 2022-02-07 to 2024-03-09 (756 observations)
+Testing range: 2024-03-10 to 2024-11-16 (252 observations)
+
+Best portfolio weights:
+  - Cash: 2.19%
+  - Conservative: 0.39%
+  - Conservative Balanced: 2.86%
+  - Balanced: 0.71%
+  - Sustainable Balanced: 1.85%
+  - Growth: 4.91%
+  - Sustainable High Growth: 2.76%
+  - High Growth: 7.84%
+  - Australian Bond: 1.98%
+  - Listed Property: 0.40%
+  - Australian Shares: 25.44%
+  - International Shares: 0.28%
+  - Global Environmental Opportunities: 2.61%
+  - Australian Dividend Income: 34.33%
+  - Global Companies in Asia: 10.07%
+  - Australian Income: 1.38%
+Fitness: 1.132
+Return rate: 8.541% (cum: 8.541%)
+
+=== Run #12 ===
+Training range: 2022-10-23 to 2024-11-16 (756 observations)
+Testing range: 2024-11-17 to 2025-07-26 (252 observations)
+
+Best portfolio weights:
+  - Cash: 1.83%
+  - Conservative: 1.25%
+  - Conservative Balanced: 2.89%
+  - Balanced: 2.33%
+  - Sustainable Balanced: 6.73%
+  - Growth: 3.11%
+  - Sustainable High Growth: 6.82%
+  - High Growth: 12.15%
+  - Australian Bond: 0.42%
+  - Listed Property: 5.43%
+  - Australian Shares: 9.61%
+  - International Shares: 5.98%
+  - Global Environmental Opportunities: 0.35%
+  - Australian Dividend Income: 6.26%
+  - Global Companies in Asia: 27.91%
+  - Australian Income: 6.91%
+Fitness: 1.082
+Return rate: 6.944% (cum: 6.944%)
+
+=== Run #13 ===
+Training range: 2023-07-02 to 2025-07-26 (756 observations)
+Testing range: 2025-07-27 to 2025-09-18 (54 observations)
+
+Best portfolio weights:
+  - Cash: 0.25%
+  - Conservative: 0.88%
+  - Conservative Balanced: 4.15%
+  - Balanced: 2.10%
+  - Sustainable Balanced: 15.32%
+  - Growth: 5.41%
+  - Sustainable High Growth: 11.90%
+  - High Growth: 2.45%
+  - Australian Bond: 0.14%
+  - Listed Property: 1.92%
+  - Australian Shares: 0.70%
+  - International Shares: 23.80%
+  - Global Environmental Opportunities: 0.22%
+  - Australian Dividend Income: 19.41%
+  - Global Companies in Asia: 9.25%
+  - Australian Income: 2.09%
+Fitness: 1.312
+Return rate: 11.492% (cum: 2.358%)
+
+=== Summary ===
+
+Seed: 8815180420595050007
+Assuming non-overlapping test periods, total cumulative return: 72.064% (12.2 years)
+ANNUAL RETURN: 4.543%

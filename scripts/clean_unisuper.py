@@ -44,4 +44,5 @@ def clean_data(filename, drop_cols):
     return result
 
 data = clean_data(sys.argv[1], ["Cash", "Conservative", "Conservative Balanced", "Balanced", "Sustainable Balanced", "Growth", "Sustainable High Growth", "High Growth"])
+# data = clean_data(sys.argv[1], [])
 data.to_csv(sys.argv[2], index=False)
